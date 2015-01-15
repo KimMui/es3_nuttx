@@ -38,6 +38,7 @@ void tsb_lowsetup(void) {
     tsb_reset(TSB_RST_UARTP);
     tsb_reset(TSB_RST_UARTS);
 
+#if 0
     /*
      * The controller requires "several cycles" after reset to stabilize before
      * register writes will work. Try this a few times.
@@ -61,6 +62,7 @@ void tsb_lowsetup(void) {
         putreg32(UART_FCR_IIR_IID0_FIFOE | UART_FCR_IIR_IID1_RFIFOR |
                  UART_FCR_IIR_IID1_XFIFOR, UART_FCR_IIR);
     }
+#endif
 }
 
 void up_lowputc(int c){
@@ -69,10 +71,12 @@ void up_lowputc(int c){
 #elif defined(CONFIG_APB_USB_LOG)
     usb_putc(c);
 #else
+#if 0
     while ((getreg32(UART_LSR) & UART_LSR_THRE) != UART_LSR_THRE)
         ;
 
     putreg32(c, UART_RBR_THR_DLL);
+#endif
 #endif
 }
 
