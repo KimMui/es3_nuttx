@@ -45,6 +45,7 @@ struct gb_cport {
 
 extern void gb_gpio_register(int cport);
 extern void gb_i2c_register(int cport);
+extern void gb_usb_register(int cport);
 
 struct greybus {
     /* TODO use a list instead */
@@ -100,6 +101,11 @@ void enable_cports(void)
 #ifdef CONFIG_GREYBUS_I2C_PHY
             if (protocol == GREYBUS_PROTOCOL_I2C)
                 gb_i2c_register(id);
+#endif
+
+#ifdef CONFIG_GREYBUS_USB_PHY
+            if (protocol == GREYBUS_PROTOCOL_USB)
+                gb_usb_register(id);
 #endif
         }
         i++;
