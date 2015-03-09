@@ -347,6 +347,10 @@ config ARM_SEMIHOSTING
     bool "ARM Semihosting"
     default n
 
+config ARM_ITM
+    bool "ARM ITM"
+    default n
+
 if ARCH_CORTEXM0
 source arch/arm/src/armv6-m/Kconfig
 endif

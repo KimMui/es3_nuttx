@@ -26,6 +26,10 @@ ifeq ($(CONFIG_ARM_SEMIHOSTING),y)
 CMN_CSRCS += up_semihosting.c
 endif
 
+ifeq ($(CONFIG_ARM_ITM),y)
+CMN_CSRCS += up_itm.c
+endif
+
 ifeq ($(CONFIG_ARCH_RAMVECTORS),y)
 CMN_CSRCS += up_ramvec_initialize.c
 endif
