@@ -33,6 +33,11 @@
 #include <string.h>
 
 #define NUM_CPORTS   (4)
+#define TSB_DEBUGTXBYTECOUNT 0xD093
+#define TSB_DEBUGRXBYTECOUNT 0xD092
+
+#define xstr(s) str(s)
+#define str(s) #s
 
 static int greybus_rx_handler(unsigned int cportid, void *data, size_t len);
 
@@ -161,6 +166,14 @@ int unipro_main(int argc, char **argv) {
         unipro_off(rc);
     } else if (strcmp(op, "info") == 0) {
         unipro_info();
+    } else if (strcmp(op, "tx") == 0) {
+        attr_read_argv[0] = (char*) xstr(TSB_DEBUGTXBYTECOUNT);
+        attr_read_argv[1] = (char*) "0";
+        attr_read(2, attr_read_argv);
+    } else if (strcmp(op, "rx") == 0) {
+        attr_read_argv[0] = (char*) xstr(TSB_DEBUGRXBYTECOUNT);
+        attr_read_argv[1] = (char*) "0";
+        attr_read(2, attr_read_argv);
     }
 
     return 0;
