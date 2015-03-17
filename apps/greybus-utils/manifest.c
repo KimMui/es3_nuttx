@@ -92,9 +92,12 @@ void enable_cports(void)
         if (g_greybus.cports_bmp & (1 << i)) {
             id = g_greybus.cports[i].id;
             protocol = g_greybus.cports[i].protocol;
-#ifdef CONFIG_GREYBUS
+#ifdef CONFIG_GREYBUS_GPIO_PHY
             if (protocol == GREYBUS_PROTOCOL_GPIO)
                 gb_gpio_register(id);
+#endif
+
+#ifdef CONFIG_GREYBUS_I2C_PHY
             if (protocol == GREYBUS_PROTOCOL_I2C)
                 gb_i2c_register(id);
 #endif

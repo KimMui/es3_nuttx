@@ -549,6 +549,10 @@ comment "System Logging Device Options"
 
 source drivers/syslog/Kconfig
 
-config GREYBUS
+menuconfig GREYBUS
 	bool "Greybus support"
 	default n
+
+if GREYBUS
+source drivers/greybus/Kconfig
+endif # GREYBUS
