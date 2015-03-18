@@ -46,3 +46,7 @@ CHIP_CSRCS += tsb_cdsi.c
 ifeq ($(CONFIG_PWM),y)
 CHIP_CSRCS += tsb_pwm.c
 endif
+
+ifeq ($(CONFIG_ARCH_CHIP_USB_HCD),y)
+CHIP_CSRCS += tsb_usb.c
+endif
