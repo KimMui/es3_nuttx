@@ -463,8 +463,12 @@ static void timer_callback(int signo, siginfo_t *si, void *ptr)
     dwc_irqflags_t flags;
 
     DWC_SPINLOCK_IRQSAVE(timer->lock, &flags);
+
     timer->scheduled = 0;
+    timer_delete(timer->t);
+
     DWC_SPINUNLOCK_IRQRESTORE(timer->lock, flags);
+
     DWC_DEBUG("Timer %s callback", timer->name);
     if (!timer->cb) {
         DWC_ERROR("BUG: Timer doesn't have callback");
@@ -537,7 +541,7 @@ void DWC_TIMER_FREE(dwc_timer_t *timer)
         DWC_TIMER_CANCEL(timer);
     }
 
-    timer_delete(&timer->t);
+    timer_delete(timer->t);
     DWC_SPINUNLOCK_IRQRESTORE(timer->lock, flags);
     DWC_SPINLOCK_FREE(timer->lock);
     DWC_FREE(timer->name);
