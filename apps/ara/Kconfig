@@ -15,4 +15,4 @@ source "$APPSDIR/ara/tca/Kconfig"
 source "$APPSDIR/ara/lg/Kconfig"
 source "$APPSDIR/ara/gpbridge/Kconfig"
 source "$APPSDIR/ara/pwm/Kconfig"
-
+source "$APPSDIR/ara/usb-host/Kconfig"
