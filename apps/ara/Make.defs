@@ -80,3 +80,7 @@ endif
 ifeq ($(CONFIG_GPBRIDGE),y)
 CONFIGURED_APPS += ara/gpbridge
 endif
+
+ifeq ($(CONFIG_ARA_USB_HOST),y)
+CONFIGURED_APPS += ara/usb-host
+endif
