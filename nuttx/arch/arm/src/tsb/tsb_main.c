@@ -7,15 +7,22 @@
 #include <nuttx/syslog/ramlog.h>
 
 #include <arch/board/board.h>
+#include <arch/chip/gpio.h>
 
 #include "up_arch.h"
 #include "up_internal.h"
 
-int main(int argc, char **argv) {
-    int i = 0;
-    while (1) {
-        lldbg("hello world: %d\n", i++);
-        asm volatile("nop");
-    }
+int main(void)
+{
+    printf("\n\n===== USB Host Dev FW =====\n");
+
+    tsb_gpio_register();
+
+    int gb_uart_init(void);
+    gb_uart_init();
+
+    void gb_usb_register(int cport);
+    gb_usb_register(0);
+
     return 0;
 }
