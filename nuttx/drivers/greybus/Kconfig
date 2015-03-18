@@ -8,3 +8,8 @@ config GREYBUS_I2C_PHY
 	select I2C
 	select I2C_TRANSFER
 	default n
+
+config GREYBUS_USB_PHY
+	bool "USB Host PHY support"
+	depends on ARCH_HAVE_USB_HOST
+	default n
