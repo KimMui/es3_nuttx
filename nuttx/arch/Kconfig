@@ -575,6 +575,10 @@ config ARCH_HAVE_RAMVECTORS
 	bool
 	default n
 
+config ARCH_HAVE_USB_HOST
+    bool
+    default n
+
 config ARCH_RAMVECTORS
 	bool "Support RAM interrupt vectors"
 	default n
