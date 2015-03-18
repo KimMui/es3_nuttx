@@ -144,7 +144,12 @@ dwc_bool_t DWC_IN_BH(void)
 
 void DWC_VPRINTF(char *format, va_list args)
 {
+#if defined(CONFIG_ARM_SEMIHOSTING)
+    //vprintf(format, args);
+    //lowvsyslog(format, args);
+#else
     lowvsyslog(format, args);
+#endif
 }
 
 int DWC_VSNPRINTF(char *str, int size, char *format, va_list args)
@@ -281,7 +286,7 @@ void __DWC_FREE(void *mem_ctx, void *addr)
 }
 
 /* Byte Ordering Conversions */
-
+#define __LITTLE_ENDIAN
 uint32_t DWC_CPU_TO_LE32(uint32_t *p)
 {
 #ifdef __LITTLE_ENDIAN

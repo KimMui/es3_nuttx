@@ -174,6 +174,9 @@ void qh_init(dwc_otg_hcd_t * hcd, dwc_otg_qh_t * qh, dwc_otg_hcd_urb_t * urb)
 	/* FS/LS Enpoint on HS Hub 
 	 * NOT virtual root hub */
 	dev_speed = hcd->fops->speed(hcd, urb->priv);
+    semihosting_putc('S');
+    semihosting_putc('0' + dev_speed);
+    semihosting_putc('S');
 
 	hcd->fops->hub_info(hcd, urb->priv, &hub_addr, &hub_port);
 	qh->do_split = 0;
@@ -181,6 +184,7 @@ void qh_init(dwc_otg_hcd_t * hcd, dwc_otg_qh_t * qh, dwc_otg_hcd_urb_t * urb)
 	if (((dev_speed == USB_SPEED_LOW) ||
 	     (dev_speed == USB_SPEED_FULL)) &&
 	    (hub_addr != 0 && hub_addr != 1)) {
+	    semihosting_putc('I');
 		DWC_DEBUGPL(DBG_HCD,
 			    "QH init: EP %d: TT found at hub addr %d, for port %d\n",
 			    dwc_otg_hcd_get_ep_num(&urb->pipe_info), hub_addr,
