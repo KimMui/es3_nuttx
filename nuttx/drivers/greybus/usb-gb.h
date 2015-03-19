@@ -61,7 +61,6 @@
 #define GB_USB_TYPE_HUB_CONTROL         0x07
 #define GB_USB_TYPE_GET_FRAME_NUMBER    0x08
 #define GB_USB_TYPE_HUB_STATUS_DATA     0x09
-#define GB_USB_TYPE_URB_COMPLETION      0x0b
 
 struct gb_usb_proto_version_response {
 	__u8	major;
@@ -96,10 +95,6 @@ struct gb_usb_urb_enqueue_request {
 };
 
 struct gb_usb_urb_enqueue_response {
-};
-
-struct gb_usb_urb_completion_request {
-	__le64 urb;
 	__le32 status;
 	__le32 actual_length;
 	u8 payload[0];

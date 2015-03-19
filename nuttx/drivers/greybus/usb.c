@@ -34,8 +34,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-static unsigned int usb_cport;
-
 static uint8_t gb_usb_protocol_version(struct gb_operation *operation)
 {
     struct gb_usb_proto_version_response *response;
@@ -85,29 +83,9 @@ static uint8_t gb_usb_hub_control(struct gb_operation *operation)
     return GB_OP_SUCCESS;
 }
 
-/**
- * Executed in interrupt context - cannot sleep
- */
 static void gb_usb_urb_complete(struct urb *urb)
 {
-    struct gb_operation *operation;
-    struct gb_usb_urb_completion_request *comp;
-
-    operation = gb_operation_create(usb_cport, GB_USB_TYPE_URB_COMPLETION,
-                                    sizeof(*comp) + urb->actual_length);
-    if (!operation)
-        goto end;
-
-    comp = gb_operation_get_request_payload(operation);
-    comp->actual_length = urb->actual_length;
-    comp->status = urb->status;
-    memcpy(comp->payload, urb->buffer, urb->actual_length);
-
-    gb_operation_send_request(operation, NULL, false);
-
-end:
-    free(urb->buffer);
-    free(urb);
+    sem_post(&urb->semaphore);
 }
 
 static uint8_t gb_usb_urb_enqueue(struct gb_operation *operation)
@@ -117,6 +95,7 @@ static uint8_t gb_usb_urb_enqueue(struct gb_operation *operation)
     int retval;
     int op_status = GB_OP_SUCCESS;
     struct urb *urb;
+    struct gb_usb_urb_enqueue_response *response;
     struct gb_usb_urb_enqueue_request *request =
         gb_operation_get_request_payload(operation);
 
@@ -147,7 +126,7 @@ static uint8_t gb_usb_urb_enqueue(struct gb_operation *operation)
         urb->buffer = malloc(request->transfer_buffer_length);
         if (!urb->buffer) {
             op_status = GB_OP_NO_MEMORY;
-            goto error;
+            goto end;
         }
 
         memcpy(urb->buffer, request->payload, request->transfer_buffer_length);
@@ -163,14 +142,46 @@ static uint8_t gb_usb_urb_enqueue(struct gb_operation *operation)
     if (retval) {
         printf("%s() : %d = %d\n", __func__, __LINE__, retval);
         op_status = GB_OP_UNKNOWN_ERROR;
-        goto error;
+        goto end;
     }
 
-    return op_status;
+    sem_wait(&urb->semaphore);
 
-error:
+    response =
+        gb_operation_alloc_response(operation,
+                                    sizeof(*response) + urb->actual_length);
+    if (!response) {
+        op_status = GB_OP_NO_MEMORY;
+        goto end;
+    }
+
+    memset(response, 0, sizeof(*response) + urb->actual_length);
+
+    printf("\nGot a response back from device: %d %d\n",
+           urb->actual_length,
+           urb->status);
+
+    response->actual_length = urb->actual_length;
+    response->status = urb->status;
+    memcpy(response->payload, urb->buffer, urb->actual_length);
+
+#if TX_DEBUG
+    {
+        int i;
+        if (urb->actual_length) {
+            printf("buffer:\n");
+            for (i = 0; i < urb->actual_length; i++) {
+                printf("%hhx ", ((char*) urb->buffer)[i]);
+            }
+            printf("\n");
+        }
+    }
+#endif
+
+end:
     free(urb->buffer);
     free(urb);
+
     return op_status;
 }
 
@@ -206,7 +217,6 @@ static uint8_t gb_usb_endpoint_disable(struct gb_operation *operation)
 
 static int gb_usb_init(unsigned int cport)
 {
-    usb_cport = cport;
     return hcd_init();
 }
 
