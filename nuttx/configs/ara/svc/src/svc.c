@@ -218,6 +218,8 @@ int svc_init(void) {
     struct tsb_switch *sw;
     int rc;
 
+    dbg_set_config(DBG_I2C | DBG_SVC | DBG_SWITCH | DBG_UI, DBG_VERBOSE);
+
     dbg_info("Initializing SVC\n");
 
     // Allocate and zero the sw struct
@@ -257,6 +259,7 @@ int svc_init(void) {
     }
     the_svc.sw = sw;
 
+    dbg_info("Setting up default routes\n");
     rc = setup_default_routes(sw);
     if (rc) {
         dbg_error("%s: Failed to set default routes\n", __func__);
