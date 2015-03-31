@@ -76,13 +76,6 @@ struct svc_interface_device_id {
     bool found;
 };
 
-struct svc_connection {
-    uint8_t device_id_0;        // DeviceID 0
-    uint8_t cport_0;            // CPort 0
-    uint8_t device_id_1;        // DeviceID 1
-    uint8_t cport_1;            // CPort 1
-};
-
 /*
  * Default routes used on BDB1B demo
  */
@@ -104,7 +97,16 @@ static struct svc_interface_device_id devid[] = {
 };
 
 /* Connections table */
-static struct svc_connection conn[] = {
+static struct unipro_connection conn[] = {
+    {
+        .device_id0 = DEV_ID_APB1,
+        .cport_id0  = 0,
+        .device_id1 = DEV_ID_APB2,
+        .cport_id1  = 0,
+        .tc = CPORT_TC0,
+        .flags = CPORT_FLAGS_E2EFC | CPORT_FLAGS_CSD_N | CPORT_FLAGS_CSV_N
+    }
+#if 0
 #if defined(CONFIG_SVC_ROUTE_DEFAULT)
     // APB1, CPort 0 <-> APB2, CPort 5, for GPIO
     { DEV_ID_APB1, DEMO_GPIO_APB1_CPORT, DEV_ID_APB2, DEMO_GPIO_APB2_CPORT },
@@ -120,13 +122,13 @@ static struct svc_connection conn[] = {
     // SPRING6, CPort 16 <-> APB2, CPort 16, for DSI
     { DEV_ID_SPRING6, DEMO_DSI_APB1_CPORT, DEV_ID_APB2, DEMO_DSI_APB2_CPORT },
 #endif
+#endif
 };
 
 
 static int setup_default_routes(struct tsb_switch *sw) {
-    int i, j, rc;
-    uint8_t port_id_0, port_id_1;
-    bool port_id_0_found, port_id_1_found;
+    int rc;
+    unsigned int i, j;
     struct interface *iface;
 
     /*
@@ -137,7 +139,9 @@ static int setup_default_routes(struct tsb_switch *sw) {
     /* Setup Port <-> deviceID and configure the Switch routing table */
     for (i = 0; i < ARRAY_SIZE(devid); i++) {
         devid[i].found = false;
-        /* Retrieve the portID from the interface name */
+        /*
+         * Retrieve the portID from the interface name and fill in the device id table.
+         */
         interface_foreach(iface, j) {
             if (!strcmp(iface->name, devid[i].interface_name)) {
                 devid[i].port_id = iface->switch_portid;
@@ -160,55 +164,46 @@ static int setup_default_routes(struct tsb_switch *sw) {
 
     /* Connections setup */
     for (i = 0; i < ARRAY_SIZE(conn); i++) {
-        /* Look up local and peer portIDs for the given deviceIDs */
-        port_id_0 = port_id_1 = 0;
-        port_id_0_found = port_id_1_found = false;
+        /*
+         * Fill in the switch port id in the connections table if the
+         * interfaces are present.
+         */
+        bool found_p0 = false;
+        bool found_p1 = false;
         for (j = 0; j < ARRAY_SIZE(devid); j++) {
             if (!devid[j].found)
                 continue;
 
-            if (devid[j].device_id == conn[i].device_id_0) {
-                port_id_0 = devid[j].port_id;
-                port_id_0_found = true;
+            if (devid[j].device_id == conn[i].device_id0) {
+                conn[i].port_id0 = devid[j].port_id;
+                found_p0 = true;
             }
-            if (devid[j].device_id == conn[i].device_id_1) {
-                port_id_1 = devid[j].port_id;
-                port_id_1_found = true;
+
+            if (devid[j].device_id == conn[i].device_id1) {
+                conn[i].port_id1 = devid[j].port_id;
+                found_p1 = true;
             }
         }
 
-        /* If found, create the requested connection */
-        if (port_id_0_found && port_id_1_found) {
-            dbg_info("Creating connection [%u:%u]->[%u:%u]\n",
-                     port_id_0, conn[i].cport_0,
-                     port_id_1, conn[i].cport_1);
+        /* If both are present, create the requested connection */
+        if (found_p0 && found_p1) {
+            dbg_info("Creating connection: [%u:%u:%u]<->[%u:%u:%u] TC: %u Flags: %x\n",
+                     conn->port_id0,
+                     conn->device_id0,
+                     conn->cport_id0,
+                     conn->port_id1,
+                     conn->device_id1,
+                     conn->cport_id1,
+                     conn->tc,
+                     conn->flags);
 
-            /* Update Switch routing table */
-            rc = switch_setup_routing_table(sw,
-                                            conn[i].device_id_0, port_id_0,
-                                            conn[i].device_id_1, port_id_1);
+            rc = switch_connection_create(sw, &conn[i]);
             if (rc) {
-                dbg_error("Failed to setup routing table [%u:%u]<->[%u:%u]\n",
-                          conn[i].device_id_0, port_id_0,
-                          conn[i].device_id_1, port_id_1);
-                return -1;
-            }
-
-            /* Create connection */
-            rc = switch_connection_std_create(sw,
-                                              port_id_0,
-                                              conn[i].cport_0,
-                                              port_id_1,
-                                              conn[i].cport_1);
-            if (rc) {
-                dbg_error("Failed to create connection [%u:%u]<->[%u:%u]\n",
-                          port_id_0, conn[i].cport_0,
-                          port_id_1, conn[i].cport_1);
                 return -1;
             }
         } else {
             dbg_error("Cannot find portIDs for deviceIDs %d and %d\n",
-                      port_id_0, port_id_1);
+                      conn[i].device_id0, conn[i].device_id1);
         }
     }
 
