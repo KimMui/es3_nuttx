@@ -188,14 +188,27 @@ static int setup_default_routes(struct tsb_switch *sw) {
         /* If both are present, create the requested connection */
         if (found_p0 && found_p1) {
             dbg_info("Creating connection: [%u:%u:%u]<->[%u:%u:%u] TC: %u Flags: %x\n",
-                     conn->port_id0,
-                     conn->device_id0,
-                     conn->cport_id0,
-                     conn->port_id1,
-                     conn->device_id1,
-                     conn->cport_id1,
-                     conn->tc,
-                     conn->flags);
+                     conn[i].port_id0,
+                     conn[i].device_id0,
+                     conn[i].cport_id0,
+                     conn[i].port_id1,
+                     conn[i].device_id1,
+                     conn[i].cport_id1,
+                     conn[i].tc,
+                     conn[i].flags);
+
+            /* Update Switch routing table */
+            rc = switch_setup_routing_table(sw,
+                                            conn[i].device_id0, conn[i].port_id0,
+                                            conn[i].device_id1, conn[i].port_id1);
+            if (rc) {
+                dbg_error("Failed to setup routing table [%u:%u]<->[%u:%u]\n",
+                          conn[i].device_id0, conn[i].port_id0,
+                          conn[i].device_id1, conn[i].port_id1);
+                return -1;
+            }
+
+
 
             rc = switch_connection_create(sw, &conn[i]);
             if (rc) {
@@ -218,7 +231,7 @@ int svc_init(void) {
     struct tsb_switch *sw;
     int rc;
 
-    dbg_set_config(DBG_I2C | DBG_SVC | DBG_SWITCH | DBG_UI, DBG_VERBOSE);
+    dbg_set_config(DBG_I2C | DBG_SVC | DBG_SWITCH | DBG_UI, DBG_INFO);
 
     dbg_info("Initializing SVC\n");
 
