@@ -79,7 +79,6 @@ else
   CFLAGS += -I$(ARCH_SRCDIR)/common
   CFLAGS += -I$(ARCH_SRCDIR)/$(ARCH_SUBDIR)
   CFLAGS += -I$(TOPDIR)/sched
-  CFLAGS += -fdiagnostics-color=always
 endif
 endif
 
