@@ -9,7 +9,6 @@
 #include "tsb_scm.h"
 #include "tsb_lowputc.h"
 
-#define DEBUG_EARLY_BOOT 1
 #ifdef DEBUG_EARLY_BOOT
 #define dbg(x) up_lowputc(x)
 #else

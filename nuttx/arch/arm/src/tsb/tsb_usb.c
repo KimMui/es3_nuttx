@@ -117,7 +117,7 @@ static int _complete(dwc_otg_hcd_t *hcd, void *urb_handle,
 {
     struct urb *urb = urb_handle;
 
-    semihosting_putc('*');
+//    semihosting_putc('*');
 
     DEBUGASSERT(hcd);
     DEBUGASSERT(urb_handle);
@@ -150,7 +150,7 @@ static int hsic_irq_handler(int irq, void *context)
     DEBUGASSERT(g_dev);
     DEBUGASSERT(g_dev->hcd);
 
-    semihosting_putc('Z');
+//    semihosting_putc('Z');
     dwc_otg_handle_common_intr(g_dev);
     return dwc_otg_hcd_handle_intr(g_dev->hcd);
 }
@@ -337,8 +337,8 @@ int hub_control(uint16_t typeReq, uint16_t wValue, uint16_t wIndex, char *buf,
     DEBUGASSERT(g_dev);
     DEBUGASSERT(g_dev->hcd);
 
-    printf("hub_control(0x%hX, 0x%hX, 0x%hX, buf, %hu);\n", typeReq, wValue,
-           wIndex, wLength);
+//    printf("hub_control(0x%hX, 0x%hX, 0x%hX, buf, %hu);\n", typeReq, wValue,
+//           wIndex, wLength);
 
     return dwc_otg_hcd_hub_control(g_dev->hcd, typeReq, wValue, wIndex,
                                    (uint8_t*) buf, wLength);

@@ -3,7 +3,8 @@
 #include <debug.h>
 
 #ifdef CONFIG_ARCH_LOWPUTC
-#define early_dbg(fmt, ...) lowsyslog(fmt, ##__VA_ARGS__)
+#define early_dbg(fmt, ...)
+//#define early_dbg(fmt, ...) lowsyslog(fmt, ##__VA_ARGS__)
 #endif
 
 #ifndef ARA_FW_VERSION
