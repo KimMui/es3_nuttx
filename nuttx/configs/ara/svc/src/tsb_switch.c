@@ -431,6 +431,16 @@ static int switch_cport_connect(struct tsb_switch *sw,
      * mailbox. We have to wait for this so that we know both bridges have
      * disabled E2EFC.
      */
+    rc = switch_dme_peer_set(sw, c->port_id0, T_CONNECTIONSTATE, c->cport_id0, 1);
+    if (rc) {
+        return rc;
+    }
+    rc = switch_dme_peer_set(sw, c->port_id1, T_CONNECTIONSTATE, c->cport_id1, 1);
+    if (rc) {
+        return rc;
+    }
+
+#if 0
     unsigned int cstate0, cstate1;
     dbg_info("%s: Waiting for bridges to boot...\n", __func__);
     while (1) {
@@ -470,6 +480,7 @@ static int switch_cport_connect(struct tsb_switch *sw,
             break;
         }
     }
+#endif
 
     return 0;
 }

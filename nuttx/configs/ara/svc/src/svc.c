@@ -31,6 +31,7 @@
 #include <nuttx/config.h>
 #include <nuttx/arch.h>
 #include <nuttx/util.h>
+#include <unipro/connection.h>
 
 #include <arch/board/board.h>
 
@@ -74,6 +75,7 @@ struct svc_interface_device_id {
     uint8_t device_id;          // DeviceID
     uint8_t port_id;            // PortID
     bool found;
+    uint32_t state;
 };
 
 /*
@@ -81,6 +83,10 @@ struct svc_interface_device_id {
  */
 #define DEV_ID_APB1             (1)
 #define DEV_ID_APB2             (2)
+#define DEV_ID_APB3             (3)
+#define DEV_ID_GPB1             (4)
+#define DEV_ID_GPB2             (5)
+
 #define DEV_ID_SPRING6          (8)
 #define DEMO_GPIO_APB1_CPORT    (0)
 #define DEMO_GPIO_APB2_CPORT    (5)
@@ -93,6 +99,9 @@ struct svc_interface_device_id {
 static struct svc_interface_device_id devid[] = {
     { "apb1", DEV_ID_APB1 },
     { "apb2", DEV_ID_APB2 },
+    { "apb3", DEV_ID_APB3 },
+    { "gpb1", DEV_ID_GPB1 },
+    { "gpb2", DEV_ID_GPB2 },
     { "spring6", DEV_ID_SPRING6 },
 };
 
@@ -105,7 +114,31 @@ static struct unipro_connection conn[] = {
         .cport_id1  = 0,
         .tc = CPORT_TC0,
         .flags = CPORT_FLAGS_E2EFC | CPORT_FLAGS_CSD_N | CPORT_FLAGS_CSV_N
-    }
+    },
+    {
+        .device_id0 = DEV_ID_APB1,
+        .cport_id0  = 1,
+        .device_id1 = DEV_ID_APB3,
+        .cport_id1  = 0,
+        .tc = CPORT_TC0,
+        .flags = CPORT_FLAGS_E2EFC | CPORT_FLAGS_CSD_N | CPORT_FLAGS_CSV_N
+    },
+    {
+        .device_id0 = DEV_ID_APB1,
+        .cport_id0  = 2,
+        .device_id1 = DEV_ID_GPB1,
+        .cport_id1  = 0,
+        .tc = CPORT_TC0,
+        .flags = CPORT_FLAGS_E2EFC | CPORT_FLAGS_CSD_N | CPORT_FLAGS_CSV_N
+    },
+    {
+        .device_id0 = DEV_ID_APB1,
+        .cport_id0  = 3,
+        .device_id1 = DEV_ID_GPB2,
+        .cport_id1  = 0,
+        .tc = CPORT_TC0,
+        .flags = CPORT_FLAGS_E2EFC | CPORT_FLAGS_CSD_N | CPORT_FLAGS_CSV_N
+    },
 #if 0
 #if defined(CONFIG_SVC_ROUTE_DEFAULT)
     // APB1, CPort 0 <-> APB2, CPort 5, for GPIO
@@ -126,6 +159,24 @@ static struct unipro_connection conn[] = {
 };
 
 
+static int connection_state_get(uint8_t id) {
+    unsigned int i;
+    for (i = 0; i < ARRAY_SIZE(devid); i++) {
+        if (id == devid[i].device_id) {
+            return devid[i].state;
+        }
+    }
+    return 0;
+}
+
+/*
+ * 1) Fill in the device id table for connected switches
+ * 2) Wait until we receive a mailbox message.
+ * 3) For a received mailbox message, mark that bridge ready.
+ * 4) Loop through unestablished connections. Find bridge in either devid0 or devid1.
+ * 5) If the other bridge is also ready, then make the connection.
+ * 6) If there are no connections left for this bridge, tell both sides that connection is ready.
+ */
 static int setup_default_routes(struct tsb_switch *sw) {
     int rc;
     unsigned int i, j;
@@ -145,7 +196,6 @@ static int setup_default_routes(struct tsb_switch *sw) {
         interface_foreach(iface, j) {
             if (!strcmp(iface->name, devid[i].interface_name)) {
                 devid[i].port_id = iface->switch_portid;
-                devid[i].found = true;
 
                 dbg_info("Setting deviceID %d to interface %s (portID %d)\n",
                          devid[i].device_id, devid[i].interface_name,
@@ -158,66 +208,144 @@ static int setup_default_routes(struct tsb_switch *sw) {
                               devid[i].device_id, devid[i].interface_name);
                     continue;
                 }
+                devid[i].found = true;
             }
         }
     }
 
-    /* Connections setup */
+    /*
+     * Fill in the switch port id in the connections table if the
+     * interfaces are present.
+     */
     for (i = 0; i < ARRAY_SIZE(conn); i++) {
-        /*
-         * Fill in the switch port id in the connections table if the
-         * interfaces are present.
-         */
-        bool found_p0 = false;
-        bool found_p1 = false;
         for (j = 0; j < ARRAY_SIZE(devid); j++) {
             if (!devid[j].found)
                 continue;
 
             if (devid[j].device_id == conn[i].device_id0) {
                 conn[i].port_id0 = devid[j].port_id;
-                found_p0 = true;
             }
 
             if (devid[j].device_id == conn[i].device_id1) {
                 conn[i].port_id1 = devid[j].port_id;
-                found_p1 = true;
+            }
+        }
+    }
+
+    /* Connections setup */
+    int done = 0;
+    while (!done) {
+        /*
+         * Loop through all found bridges and update state
+         */
+        for (i = 0; i < ARRAY_SIZE(devid); i++) {
+            if (!devid[i].found) {
+                continue;
+            }
+            rc = switch_dme_get(sw, devid[i].port_id, TSB_MAILBOX, 0, &devid[i].state);
+            if (rc) {
+                dbg_error("Failed to read mailbox on port %u\n", devid[i].port_id);
+                continue;
             }
         }
 
-        /* If both are present, create the requested connection */
-        if (found_p0 && found_p1) {
-            dbg_info("Creating connection: [%u:%u:%u]<->[%u:%u:%u] TC: %u Flags: %x\n",
-                     conn[i].port_id0,
-                     conn[i].device_id0,
-                     conn[i].cport_id0,
-                     conn[i].port_id1,
-                     conn[i].device_id1,
-                     conn[i].cport_id1,
-                     conn[i].tc,
-                     conn[i].flags);
+        for (i = 0; i < ARRAY_SIZE(conn); i++) {
+            /* If both are present, create the requested connection */
+            if ((connection_state_get(conn[i].device_id0) == CONNECTION_BOOTED) &&
+                (connection_state_get(conn[i].device_id1) == CONNECTION_BOOTED) &&
+                conn[i].state == 0) {
+                dbg_info("Creating connection: [%u:%u:%u]<->[%u:%u:%u] TC: %u Flags: %x\n",
+                        conn[i].port_id0,
+                        conn[i].device_id0,
+                        conn[i].cport_id0,
+                        conn[i].port_id1,
+                        conn[i].device_id1,
+                        conn[i].cport_id1,
+                        conn[i].tc,
+                        conn[i].flags);
 
-            /* Update Switch routing table */
-            rc = switch_setup_routing_table(sw,
-                                            conn[i].device_id0, conn[i].port_id0,
-                                            conn[i].device_id1, conn[i].port_id1);
-            if (rc) {
-                dbg_error("Failed to setup routing table [%u:%u]<->[%u:%u]\n",
-                          conn[i].device_id0, conn[i].port_id0,
-                          conn[i].device_id1, conn[i].port_id1);
-                return -1;
+                /* Update Switch routing table */
+                rc = switch_setup_routing_table(sw,
+                        conn[i].device_id0, conn[i].port_id0,
+                        conn[i].device_id1, conn[i].port_id1);
+                if (rc) {
+                    dbg_error("Failed to setup routing table [%u:%u]<->[%u:%u]\n",
+                            conn[i].device_id0, conn[i].port_id0,
+                            conn[i].device_id1, conn[i].port_id1);
+                    return -1;
+                }
+
+                rc = switch_connection_create(sw, &conn[i]);
+                if (rc) {
+                    return -1;
+                }
+
+                /*
+                 * And finally tell the bridges that they can proceed. They will then turn on
+                 * E2EFC and tokens will begin flowing.
+                 */
+#if 1
+                dbg_info("Setting local mailbox...\n");
+                rc = switch_dme_set(sw, conn[i].port_id0, TSB_MAILBOX, 0, 1);
+                if (rc) {
+                    return rc;
+                }
+                rc = switch_dme_set(sw, conn[i].port_id1, TSB_MAILBOX, 0, 1);
+                if (rc) {
+                    return rc;
+                }
+
+#endif
+                uint32_t cp0 = (1 << 16) | conn[i].cport_id0;
+                uint32_t cp1 = (2 << 16) | conn[i].cport_id1;
+                dbg_info("Setting peer mailbox...: %x\n", cp0);
+                rc = switch_dme_peer_set(sw, conn[i].port_id0, TSB_MAILBOX, 0, cp0);
+                if (rc) {
+                    return rc;
+                }
+                dbg_info("Setting peer mailbox...: %x\n", cp1);
+                rc = switch_dme_peer_set(sw, conn[i].port_id1, TSB_MAILBOX, 0, cp1);
+                if (rc) {
+                    return rc;
+                }
+
+                uint32_t mbox0, mbox1;
+                do {
+                    dbg_info("Waiting for mailbox clear\n");
+                    rc = switch_dme_get(sw, conn[i].port_id0, TSB_MAILBOX, 0, &mbox0);
+                    if (rc) {
+                        return rc;
+                    }
+                    rc = switch_dme_get(sw, conn[i].port_id1, TSB_MAILBOX, 0, &mbox1);
+                    if (rc) {
+                        return rc;
+                    }
+                    usleep(50000);
+                } while (mbox0 || mbox1);
+
+                conn[i].state = 1;
+                dbg_info("Created connection: [%u:%u:%u]<->[%u:%u:%u] TC: %u Flags: %x\n",
+                        conn[i].port_id0,
+                        conn[i].device_id0,
+                        conn[i].cport_id0,
+                        conn[i].port_id1,
+                        conn[i].device_id1,
+                        conn[i].cport_id1,
+                        conn[i].tc,
+                        conn[i].flags);
             }
-
-
-
-            rc = switch_connection_create(sw, &conn[i]);
-            if (rc) {
-                return -1;
-            }
-        } else {
-            dbg_error("Cannot find portIDs for deviceIDs %d and %d\n",
-                      conn[i].device_id0, conn[i].device_id1);
         }
+
+        for (i = 0; i < ARRAY_SIZE(conn); i++) {
+            if (!conn[i].state) {
+                break;
+            }
+
+            if (i == (ARRAY_SIZE(conn) - 1)) {
+                done = 1;
+            }
+        }
+        usleep(50000);
     }
 
     switch_dump_routing_table(sw);
@@ -231,7 +359,7 @@ int svc_init(void) {
     struct tsb_switch *sw;
     int rc;
 
-    dbg_set_config(DBG_I2C | DBG_SVC | DBG_SWITCH | DBG_UI, DBG_INFO);
+    dbg_set_config(DBG_I2C | DBG_SVC | DBG_UI, DBG_INFO);
 
     dbg_info("Initializing SVC\n");
 

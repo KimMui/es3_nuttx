@@ -41,6 +41,8 @@
 #define TSB_MAILBOX                 (0xA000)
 #define TSB_MAXSEGMENTCONFIG        (0xD089)
 #define DME_POWERMODEIND            (0xD040)
+#define TSB_INTERRUPT_ENABLE        (0xd080)
+#define TSB_INTERRUPT_STATUS        (0xd081)
 
 #define unipro_attr_local_read(attr, val, sel, rc) \
     unipro_attr_read(attr, val, sel, 0, rc)
@@ -101,8 +103,8 @@ int unipro_send(unsigned int cportid, const void *buf, size_t len) {
     size_t buffer_space = 0;
     int rc;
 
-    volatile unsigned int *tx_queue = (volatile unsigned int*)(0x50000000);
-    volatile unsigned char *eom = (volatile unsigned int*)(0x50000000 + 0x1FFFF);
+    volatile unsigned int *tx_queue = (volatile unsigned int*)(0x50000000 + cportid * 0x20000);
+    volatile unsigned char *eom = (volatile unsigned char*)(0x50000000 + (cportid * 0x20000) + 0x1FFFF);
 
 #if 0
     for (i = 1; i <= 1024; i++) {
@@ -257,7 +259,7 @@ static void dump_regs(void) {
 #define T_LOCALBUFFERSPACE 0x4028
 #define T_PEERBUFFERSPACE 0x4029
 #define T_CREDITSTOSEND  0x402A
-        if (i == 0) {
+        if (val == 0) {
             lldbg("CPORT %u:\n", i);
 
             unipro_attr_read(T_PEERDEVICEID, &val, i, 0, &rc);
@@ -383,12 +385,27 @@ static unsigned int devid = 0;
 #define irqn_to_cport(irqn)          cport_handle((irqn - TSB_IRQ_UNIPRO_RX_EOM00))
 #define cportid_to_irqn(cportid)     (TSB_IRQ_UNIPRO_RX_EOM00 + cportid)
 static inline int irq_rx_eom(int irqn, void *context) {
-    unipro_write(AHM_RX_EOM_INT_BEF_0, 1);
-    lldbg("%s: cport %u\n", __func__, irqn - TSB_IRQ_UNIPRO_RX_EOM00);
+    uint32_t cport;
+    cport = irqn - TSB_IRQ_UNIPRO_RX_EOM00;
+    unipro_write(AHM_RX_EOM_INT_BEF_0, 0x3 << (cport * 2));
+    lldbg("%s: cport %u\n", __func__, cport);
     /*
      * Allow data to flow again
      */
-    unipro_write(REG_RX_PAUSE_SIZE_00, (1 << 31) | CPORT_BUF_SIZE);
+    unipro_write(REG_RX_PAUSE_SIZE_00 + cport*4, (1 << 31) | CPORT_BUF_SIZE);
+    return 0;
+}
+
+static int irq_unipro(int irqn, void *context) {
+    uint32_t val = 0;
+    uint32_t e2efc = 0;
+    unipro_attr_local_read(TSB_MAILBOX, &val, 0, NULL);
+    unipro_attr_local_read(TSB_INTERRUPT_STATUS, NULL, 0, NULL);
+    unipro_attr_peer_write(TSB_MAILBOX, 0, 0, NULL);
+    e2efc = unipro_read(CPB_RX_E2EFC_EN_0);
+    lldbg("%s: irq received: %x e2efc: %x\n", __func__, val, e2efc);
+    e2efc |= (1 << (val & 0xFF));
+    unipro_write(CPB_RX_E2EFC_EN_0, e2efc);
     return 0;
 }
 
@@ -431,22 +448,39 @@ void unipro_init(void) {
     /*
      * Configure cport0 to transfer mode 2
      */
-    unipro_write(AHM_MODE_CTRL_0, 0x2);
-    unipro_write(AHM_ADDRESS_00, CPORT_RX_BUF_BASE);
+    uint32_t base = CPORT_RX_BUF_BASE;
+    unipro_write(AHM_MODE_CTRL_0, 0xAA);
+    unipro_write(AHM_ADDRESS_00, base);
+    base += CPORT_BUF_SIZE;
+    unipro_write(AHM_ADDRESS_01, base);
+    base += CPORT_BUF_SIZE;
+    unipro_write(AHM_ADDRESS_02, base);
+    base += CPORT_BUF_SIZE;
+    unipro_write(AHM_ADDRESS_03, base);
+    base += CPORT_BUF_SIZE;
 
     /*
      * Set pause size to CPORT_BUF_SIZE
      */
     unipro_write(REG_RX_PAUSE_SIZE_00, (1 << 31) | CPORT_BUF_SIZE);
+    unipro_write(REG_RX_PAUSE_SIZE_01, (1 << 31) | CPORT_BUF_SIZE);
+    unipro_write(REG_RX_PAUSE_SIZE_02, (1 << 31) | CPORT_BUF_SIZE);
+    unipro_write(REG_RX_PAUSE_SIZE_03, (1 << 31) | CPORT_BUF_SIZE);
 //    unipro_write(AHS_HRESP_MODE_0, 1);
 //    unipro_write(AHS_TIMEOUT_00, 0x10000);
 
     /*
      * Install IRQ handler
      */
-    unipro_write(AHM_RX_EOM_INT_EN_0, 3);
+    unipro_write(AHM_RX_EOM_INT_EN_0, 0xFF);
     irq_attach(TSB_IRQ_UNIPRO_RX_EOM00, &irq_rx_eom);
+    irq_attach(TSB_IRQ_UNIPRO_RX_EOM01, &irq_rx_eom);
+    irq_attach(TSB_IRQ_UNIPRO_RX_EOM02, &irq_rx_eom);
+    irq_attach(TSB_IRQ_UNIPRO_RX_EOM03, &irq_rx_eom);
     up_enable_irq(TSB_IRQ_UNIPRO_RX_EOM00);
+    up_enable_irq(TSB_IRQ_UNIPRO_RX_EOM01);
+    up_enable_irq(TSB_IRQ_UNIPRO_RX_EOM02);
+    up_enable_irq(TSB_IRQ_UNIPRO_RX_EOM03);
     unipro_write(UNIPRO_INT_EN, 1);
 
 //    unipro_write(TX_SW_RESET_00, 0x0);
@@ -460,26 +494,40 @@ void unipro_init(void) {
 
 //    unipro_attr_write(T_TRAFFICCLASS, 1, 0, 0, NULL);
 
+    irq_attach(TSB_IRQ_UNIPRO, &irq_unipro);
+    up_enable_irq(TSB_IRQ_UNIPRO);
+    unipro_attr_local_write(TSB_INTERRUPT_ENABLE, 1 << 15, 0, NULL);
+
+    unipro_info();
+
     /*
      * Tell switch we're booted
      */
     unipro_attr_peer_write(TSB_MAILBOX, CONNECTION_BOOTED, 0, NULL);
 
-    /*
-     * Now wait for the SVC to tell us the connection has been set up
-     * before enabling E2EFC and allowing credits to flow.
-     */
-    unsigned int rc;
-    unsigned int val;
-    while (1) {
-        rc = unipro_attr_local_read(TSB_MAILBOX, &val, 0, &rc);
-        if (val == CONNECTION_READY) {
-            unipro_write(CPB_RX_E2EFC_EN_0, 1);
-            break;
-        }
-    }
+//    /*
+//     * Now wait for the SVC to tell us the connection has been set up
+//     * before enabling E2EFC and allowing credits to flow.
+//     */
+//    unsigned int rc;
+//    unsigned int val;
+//    while (1) {
+//        rc = unipro_attr_local_read(TSB_MAILBOX, &val, 0, &rc);
+//        if (val == CONNECTION_READY) {
+//            unipro_write(CPB_RX_E2EFC_EN_0, 1);
+//            break;
+//        }
+//    }
 
-    unipro_info();
+    /*
+     * Turn on mailbox and wait for notifications of connected cports
+     */
+
+}
+
+void start_the_world(void) {
+    unipro_init();
+    nsh_main(0, NULL);
 }
 
 

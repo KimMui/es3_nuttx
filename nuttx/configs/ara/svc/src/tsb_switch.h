@@ -102,6 +102,7 @@ struct unipro_connection {
     uint8_t cport_id1;
     uint8_t tc;
     uint8_t flags;
+    uint8_t state;
 };
 
 /**

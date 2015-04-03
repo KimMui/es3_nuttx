@@ -1,4 +1,5 @@
 #include <nuttx/config.h>
+#include <arch/tsb/unipro.h>
 #include <debug.h>
 
 #ifdef CONFIG_ARCH_LOWPUTC

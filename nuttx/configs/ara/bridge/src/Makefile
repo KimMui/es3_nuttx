@@ -7,6 +7,11 @@ AOBJS		= $(ASRCS:.S=$(OBJEXT))
 
 CSRCS		= up_boot.c
 
+ifeq ($(CONFIG_PWM),y)
+CSRCS		+= up_pwm.c
+endif
+
+
 COBJS		= $(CSRCS:.c=$(OBJEXT))
 
 SRCS		= $(ASRCS) $(CSRCS)
