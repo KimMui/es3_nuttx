@@ -526,6 +526,11 @@ void unipro_init(void) {
 }
 
 void start_the_world(void) {
+    tsb_gpio_register();
+
+    tsb_device_table_register();
+    tsb_driver_register();
+
     unipro_init();
     nsh_main(0, NULL);
 }
