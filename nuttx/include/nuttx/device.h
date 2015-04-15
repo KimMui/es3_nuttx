@@ -55,11 +55,11 @@ struct device_driver_ops {
     union {
         struct device_i2s_type_ops     *i2s;
         struct device_pll_type_ops     *pll;
-    } class_ops;
+    } type_ops;
 };
 
 struct device_driver {
-    char                        *class;
+    char                        *type;
     char                        *name;
     char                        *desc;
     struct device_driver_ops    *ops;
@@ -67,7 +67,7 @@ struct device_driver {
 };
 
 struct device {
-    char                    *class;
+    char                    *type;
     char                    *name;
     char                    *desc;
     unsigned int            id;
@@ -81,7 +81,7 @@ struct device {
 
 #ifdef CONFIG_DEVICE_CORE
 /* Called by device driver clients */
-struct device *device_open(char *class, unsigned int id);
+struct device *device_open(char *type, unsigned int id);
 void device_close(struct device *dev);
 
 /* Called by device drivers */
