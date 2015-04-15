@@ -69,6 +69,7 @@ SUBDIRS  += svc_power
 SUBDIRS  += pwm
 SUBDIRS  += gpio
 SUBDIRS  += pinshare
+SUBDIRS  += i2s
 
 # Sub-directories that might need context setup.  Directories may need
 # context setup for a variety of reasons, but the most common is because
@@ -77,11 +78,13 @@ SUBDIRS  += pinshare
 CNTXTDIRS = debug epm etm pwm svc unipro tca lg
 CNTXTDIRS += gpio
 CNTXTDIRS += pinshare
+CNTXTDIRS += i2s
 
 ifeq ($(CONFIG_NSH_BUILTIN_APPS),y)
 CNTXTDIRS += debug epm etm pwm svc unipro tca lg
 CNTXTDIRS += gpio
 CNTXTDIRS += pinshare
+CNTXTDIRS += i2s
 endif
 
 all: nothing

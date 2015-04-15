@@ -18,3 +18,5 @@ source "$APPSDIR/ara/pwm/Kconfig"
 source "$APPSDIR/ara/gpio/Kconfig"
 source "$APPSDIR/ara/pwrm/Kconfig"
 source "$APPSDIR/ara/pinshare/Kconfig"
+source "$APPSDIR/ara/i2s/Kconfig"
+
