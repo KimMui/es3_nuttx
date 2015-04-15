@@ -51,3 +51,8 @@ ifeq ($(CONFIG_TSB_CHIP_REV_ES2), y)
 CMN_CSRCS += tsb_unipro_es2.c
 CMN_CSRCS += tsb_es2_mphy_fixups.c
 endif
+
+ifeq ($(CONFIG_DEVICE_CORE),y)
+CHIP_CSRCS += tsb_device_table.c
+CHIP_CSRCS += tsb_driver.c
+endif
