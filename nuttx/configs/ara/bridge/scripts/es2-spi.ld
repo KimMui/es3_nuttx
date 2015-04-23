@@ -28,7 +28,7 @@
 
 MEMORY
 {
-    rom  (rx)  : ORIGIN = 0x01000000, LENGTH = 2M
+    rom  (rx)  : ORIGIN = 0x01000000, LENGTH = 192K
     sram (rwx) : ORIGIN = 0x10000000, LENGTH = 192K
 }
 
