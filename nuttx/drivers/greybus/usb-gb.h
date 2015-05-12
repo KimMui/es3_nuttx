@@ -31,6 +31,9 @@
 
 #include <nuttx/greybus/types.h>
 
+#define GB_USB_HOST_URB_ZERO_PACKET         0x0040
+#define GB_USB_HOST_URB_NO_INTERRUPT        0x0080
+
 /* Version of the Greybus USB protocol we support */
 #define GB_USB_VERSION_MAJOR		0x00
 #define GB_USB_VERSION_MINOR		0x01
@@ -40,11 +43,46 @@
 #define GB_USB_TYPE_PROTOCOL_VERSION	0x01
 #define GB_USB_TYPE_HCD_STOP		0x02
 #define GB_USB_TYPE_HCD_START		0x03
+#define GB_USB_TYPE_URB_ENQUEUE		0x04
 #define GB_USB_TYPE_HUB_CONTROL		0x07
+#define GB_USB_TYPE_URB_COMPLETION	0x0b
 
 struct gb_usb_proto_version_response {
 	__u8	major;
 	__u8	minor;
+};
+
+struct gb_usb_urb_enqueue_request {
+	__le32 pipe;
+	__le32 transfer_flags;
+	__le32 transfer_buffer_length;
+	__le32 maxpacket;
+	__le32 interval;
+	__le64 hcpriv_ep;
+	__le32 number_of_packets;
+	__u8   dev_speed;
+	__le32 devnum;
+	__le32 dev_ttport;
+	u8 setup_packet[8];
+	u8 payload[0];
+};
+
+#if defined(ASYNC_URB_ENQUEUE)
+struct gb_usb_urb_enqueue_response {
+};
+#else
+struct gb_usb_urb_enqueue_response {
+	__le32 status;
+	__le32 actual_length;
+	u8 payload[0];
+};
+#endif
+
+struct gb_usb_urb_completion_request {
+	__le64 urb;
+	__le32 status;
+	__le32 actual_length;
+	u8 payload[0];
 };
 
 struct gb_usb_hub_control_request {

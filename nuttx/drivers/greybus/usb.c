@@ -44,6 +44,7 @@
 #endif
 
 static struct device *usbdev;
+static unsigned int usb_cport;
 
 static uint8_t gb_usb_protocol_version(struct gb_operation *operation)
 {
@@ -80,6 +81,120 @@ static uint8_t gb_usb_hcd_start(struct gb_operation *operation)
     }
 
     return GB_OP_SUCCESS;
+}
+
+
+static void gb_usb_urb_complete(struct urb *urb)
+{
+#if defined(ASYNC_URB_ENQUEUE)
+    struct gb_operation *operation;
+    struct gb_usb_urb_completion_request *comp;
+
+    operation = gb_operation_create(usb_cport, GB_USB_TYPE_URB_COMPLETION,
+                                    sizeof(*comp) + urb->actual_length);
+    if (!operation) {
+        goto end;
+    }
+
+    comp = gb_operation_get_request_payload(operation);
+    comp->actual_length = cpu_to_le32(urb->actual_length);
+    comp->status = cpu_to_le32(urb->status);
+    memcpy(comp->payload, urb->buffer, urb->actual_length);
+
+    gb_operation_send_request(operation, NULL, false);
+
+end:
+    free(urb->buffer);
+    free(urb);
+#else
+    sem_post(&urb->semaphore);
+#endif
+}
+
+static uint8_t gb_usb_urb_enqueue(struct gb_operation *operation)
+{
+    int retval;
+    int op_status = GB_OP_SUCCESS;
+    struct urb *urb;
+    struct gb_usb_urb_enqueue_response *response;
+    struct gb_usb_urb_enqueue_request *request =
+        gb_operation_get_request_payload(operation);
+    uint32_t transfer_buffer_length;
+    uint32_t transfer_flags;
+
+    gb_usb_debug("device_usb_hcd_urb_enqueue(usbdev, urb);\n");
+
+    if (gb_operation_get_request_payload_size(operation) < sizeof(*request)) {
+        return GB_OP_INVALID;
+    }
+
+    urb = urb_create();
+    if (!urb) {
+        return GB_OP_NO_MEMORY;
+    }
+
+    urb->pipe = le32_to_cpu(request->pipe);
+    urb->length = le32_to_cpu(request->transfer_buffer_length);
+    urb->maxpacket = le32_to_cpu(request->maxpacket);
+    urb->interval = le32_to_cpu(request->interval);
+    urb->dev_speed = request->dev_speed;
+    urb->dev_ttport = le32_to_cpu(request->dev_ttport);
+    urb->devnum = le32_to_cpu(request->devnum);
+    urb->complete = gb_usb_urb_complete;
+    memcpy(urb->setup_packet, request->setup_packet, sizeof(urb->setup_packet));
+
+    transfer_buffer_length = le32_to_cpu(request->transfer_buffer_length);
+    transfer_flags = le32_to_cpu(request->transfer_flags);
+
+    if (transfer_buffer_length) {
+        urb->buffer = malloc(transfer_buffer_length);
+        if (!urb->buffer) {
+            op_status = GB_OP_NO_MEMORY;
+            goto error;
+        }
+
+        memcpy(urb->buffer, request->payload, transfer_buffer_length);
+    }
+
+    if (!(transfer_flags & GB_USB_HOST_URB_NO_INTERRUPT)) {
+        urb->flags |= USB_URB_GIVEBACK_ASAP;
+    }
+
+    if (transfer_flags & GB_USB_HOST_URB_ZERO_PACKET) {
+        urb->flags |= USB_URB_SEND_ZERO_PACKET;
+    }
+
+    retval = device_usb_hcd_urb_enqueue(usbdev, urb);
+    if (retval) {
+        op_status = GB_OP_UNKNOWN_ERROR;
+        goto error;
+    }
+
+#if defined(ASYNC_URB_ENQUEUE)
+    return op_status;
+#else
+    sem_wait(&urb->semaphore);
+
+    response =
+        gb_operation_alloc_response(operation,
+                                    sizeof(*response) + urb->actual_length);
+    if (!response) {
+        op_status = GB_OP_NO_MEMORY;
+        goto error;
+    }
+
+    memset(response, 0, sizeof(*response) + urb->actual_length);
+
+    response->actual_length = urb->actual_length;
+    response->status = urb->status;
+    memcpy(response->payload, urb->buffer, urb->actual_length);
+#endif
+
+error:
+    free(urb->buffer);
+    urb_destroy(urb);
+
+    return op_status;
 }
 
 static uint8_t gb_usb_hub_control(struct gb_operation *operation)
@@ -141,6 +256,7 @@ static struct gb_operation_handler gb_usb_handlers[] = {
     GB_HANDLER(GB_USB_TYPE_PROTOCOL_VERSION, gb_usb_protocol_version),
     GB_HANDLER(GB_USB_TYPE_HCD_STOP, gb_usb_hcd_stop),
     GB_HANDLER(GB_USB_TYPE_HCD_START, gb_usb_hcd_start),
+    GB_HANDLER(GB_USB_TYPE_URB_ENQUEUE, gb_usb_urb_enqueue),
     GB_HANDLER(GB_USB_TYPE_HUB_CONTROL, gb_usb_hub_control),
 };
 
@@ -154,5 +270,6 @@ struct gb_driver usb_driver = {
 
 void gb_usb_register(int cport)
 {
+    usb_cport = cport;
     gb_register_driver(cport, &usb_driver);
 }
