@@ -81,6 +81,109 @@ static uint8_t gb_usb_hcd_start(struct gb_operation *operation)
     return GB_OP_SUCCESS;
 }
 
+static void gb_usb_urb_complete(struct urb *urb)
+{
+    sem_post(&urb->semaphore);
+}
+
+static uint8_t gb_usb_urb_enqueue(struct gb_operation *operation)
+{
+    int retval;
+    int op_status = GB_OP_SUCCESS;
+    struct urb *urb;
+    struct gb_usb_urb_enqueue_response *response;
+    struct gb_usb_urb_enqueue_request *request =
+        gb_operation_get_request_payload(operation);
+
+    gb_usb_debug("%s()\n", __func__);
+
+    urb = zalloc(sizeof(*urb)); // FIXME: ref
+    if (!urb) {
+        return GB_OP_NO_MEMORY;
+    }
+
+    sem_init(&urb->semaphore, 0, 0);
+    urb->urb = NULL;
+    urb->pipe = request->pipe;
+    urb->length = request->transfer_buffer_length;
+    urb->maxpacket = request->maxpacket;
+    //urb->hcpriv_ep = request->hcpriv_ep;
+    urb->interval = request->interval;
+    urb->dev_speed = request->dev_speed;
+    urb->dev_ttport = request->dev_ttport;
+    urb->devnum = request->devnum;
+    urb->complete = gb_usb_urb_complete;
+    memcpy(urb->setup_packet, request->setup_packet, sizeof(urb->setup_packet));
+
+    printf("urb->devnum = %d\n", urb->devnum);
+    printf("urb->dev_ttport = %d\n", urb->dev_ttport);
+    printf("urb->dev_speed = %hhu\n", urb->dev_speed);
+
+    if (request->transfer_buffer_length) {
+        urb->buffer = malloc(request->transfer_buffer_length);
+        if (!urb->buffer) {
+            op_status = GB_OP_NO_MEMORY;
+            goto end;
+        }
+
+        memcpy(urb->buffer, request->payload, request->transfer_buffer_length);
+    }
+
+    if (!(request->transfer_flags & GB_USB_HOST_URB_NO_INTERRUPT)) {
+        urb->flags |= USB_URB_GIVEBACK_ASAP;
+    }
+
+    if (request->transfer_flags & GB_USB_HOST_URB_ZERO_PACKET) {
+        urb->flags |= USB_URB_SEND_ZERO_PACKET;
+    }
+
+    retval = device_usb_hcd_urb_enqueue(usbdev, urb);
+    if (retval) {
+        printf("%s() : %d = %d\n", __func__, __LINE__, retval);
+        op_status = GB_OP_UNKNOWN_ERROR;
+        goto end;
+    }
+
+    sem_wait(&urb->semaphore);
+
+    response =
+        gb_operation_alloc_response(operation,
+                                    sizeof(*response) + urb->actual_length);
+    if (!response) {
+        op_status = GB_OP_NO_MEMORY;
+        goto end;
+    }
+
+    memset(response, 0, sizeof(*response) + urb->actual_length);
+
+    printf("\nGot a response back from device: %d %d\n",
+           urb->actual_length,
+           urb->status);
+
+    response->actual_length = urb->actual_length;
+    response->status = urb->status;
+    memcpy(response->payload, urb->buffer, urb->actual_length);
+
+#if TX_DEBUG
+    {
+        int i;
+        if (urb->actual_length) {
+            printf("buffer:\n");
+            for (i = 0; i < urb->actual_length; i++) {
+                printf("%hhx ", ((char*) urb->buffer)[i]);
+            }
+            printf("\n");
+        }
+    }
+#endif
+
+end:
+    free(urb->buffer);
+    free(urb);
+
+    return op_status;
+}
+
 static uint8_t gb_usb_hub_control(struct gb_operation *operation)
 {
     struct gb_usb_hub_control_response *response;
@@ -131,6 +234,7 @@ static struct gb_operation_handler gb_usb_handlers[] = {
     GB_HANDLER(GB_USB_TYPE_PROTOCOL_VERSION, gb_usb_protocol_version),
     GB_HANDLER(GB_USB_TYPE_HCD_STOP, gb_usb_hcd_stop),
     GB_HANDLER(GB_USB_TYPE_HCD_START, gb_usb_hcd_start),
+    GB_HANDLER(GB_USB_TYPE_URB_ENQUEUE, gb_usb_urb_enqueue),
     GB_HANDLER(GB_USB_TYPE_HUB_CONTROL, gb_usb_hub_control),
 };
 

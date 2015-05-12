@@ -40,12 +40,34 @@
 #define GB_USB_TYPE_PROTOCOL_VERSION	0x01
 #define GB_USB_TYPE_HCD_STOP		0x02
 #define GB_USB_TYPE_HCD_START		0x03
+#define GB_USB_TYPE_URB_ENQUEUE		0x04
 #define GB_USB_TYPE_HUB_CONTROL		0x07
 
 
 struct gb_usb_proto_version_response {
 	__u8	major;
 	__u8	minor;
+};
+
+struct gb_usb_urb_enqueue_request {
+	__le32 pipe;
+	__le32 transfer_flags;
+	__le32 transfer_buffer_length;
+	__le32 maxpacket;
+	__le32 interval;
+	__le64 hcpriv_ep;
+	__le32 number_of_packets;
+	__u8   dev_speed;
+	__le32 devnum;
+	__le32 dev_ttport;
+	u8 setup_packet[8];
+	u8 payload[0];
+};
+
+struct gb_usb_urb_enqueue_response {
+	__le32 status;
+	__le32 actual_length;
+	u8 payload[0];
 };
 
 struct gb_usb_hub_control_request {
