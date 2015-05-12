@@ -41,6 +41,35 @@
 #define DEVICE_TYPE_USB_HCD     "usb-hcd"
 #define DEVICE_TYPE_HSIC_DEVICE "hsic-device"
 
+struct urb;
+typedef void (*urb_complete_t)(struct urb *urb);
+
+struct urb {
+    void *urb;
+    unsigned int pipe;
+    unsigned int flags;
+
+    int status;
+    int dev_speed;
+    int devnum;
+    int dev_ttport;
+
+    size_t length;
+    size_t actual_length;
+
+    unsigned int maxpacket;
+
+    int interval;
+
+    uint8_t setup_packet[8];
+    void *buffer;
+
+    urb_complete_t complete;
+
+    sem_t semaphore;
+    void *hcpriv;
+};
+
 struct device_usb_hcd_type_ops {
     int (*start)(struct device *dev);
     void (*stop)(struct device *dev);
@@ -118,6 +147,29 @@ static inline int device_usb_hcd_hub_control(struct device *dev,
     }
 
     return -ENOSYS;
+}
+
+/**
+ * Send urbs
+ *
+ * @param dev HCD device
+ * @param urb URB to send
+ * @return 0 if successful
+ */
+static inline int device_usb_hcd_urb_enqueue(struct device *dev,
+                                             struct urb *urb)
+{
+    DEBUGASSERT(dev);
+    DEBUGASSERT(dev->driver && dev->driver->ops &&
+                dev->driver->ops->type_ops.usb_hcd);
+
+    if (dev->state != DEVICE_STATE_OPEN)
+        return -ENODEV;
+
+    if (dev->driver->ops->type_ops.usb_hcd->urb_enqueue)
+        return dev->driver->ops->type_ops.usb_hcd->urb_enqueue(dev, urb);
+
+    return -EOPNOTSUPP;
 }
 
 struct device_hsic_type_ops {
