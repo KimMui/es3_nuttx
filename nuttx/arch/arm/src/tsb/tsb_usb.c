@@ -48,9 +48,69 @@
 #define TSB_HSIC_DPPULLDOWN             (1 << 0)
 #define TSB_HSIC_DMPULLDOWN             (1 << 1)
 
+//#define printf(x...)
+
 static dwc_otg_device_t *g_dev;
-static struct dwc_otg_hcd_function_ops hcd_fops;
 struct mm_heap_s g_usb_dma_heap;
+
+static int _hub_info(dwc_otg_hcd_t *hcd, void *urb_handle, uint32_t *hub_addr,
+                     uint32_t *port_addr)
+{
+    struct urb *urb = urb_handle;
+
+    if (!urb)
+        return -EINVAL;
+
+    if (hub_addr)
+        *hub_addr = urb->devnum;
+
+    if (port_addr)
+        *port_addr = urb->dev_ttport;
+
+    return 0;
+}
+
+
+static int _speed(dwc_otg_hcd_t *hcd, void *urb_handle)
+{
+    struct urb *urb = urb_handle;
+
+    if (!urb)
+        return -EINVAL;
+
+    return urb->dev_speed;
+}
+
+static int _complete(dwc_otg_hcd_t *hcd, void *urb_handle,
+             dwc_otg_hcd_urb_t *dwc_urb, int32_t status)
+{
+    struct urb *urb = urb_handle;
+
+    if (!hcd || !urb || !dwc_urb)
+        return -EINVAL;
+
+    urb->actual_length = dwc_otg_hcd_urb_get_actual_length(dwc_urb);
+    urb->status = status;
+
+    free(dwc_urb);
+
+    DWC_SPINUNLOCK(hcd->lock);
+
+    if (urb->complete)
+        urb->complete(urb);
+    else
+        free(urb); // FIXME unref
+
+    DWC_SPINLOCK(hcd->lock);
+
+    return 0;
+}
+
+static struct dwc_otg_hcd_function_ops hcd_fops = {
+    .hub_info = _hub_info,
+    .speed = _speed,
+    .complete = _complete,
+};
 
 /**
  * HSIC IRQ Handler
@@ -322,9 +382,134 @@ static int hub_control(struct device *dev, uint16_t typeReq, uint16_t wValue,
                                    (uint8_t*) buf, wLength);
 }
 
+static const char *request_id_to_string(int id)
+{
+    switch (id) {
+    case GET_STATUS_REQUEST:
+        return "GET_STATUS";
+
+    case CLEAR_FEATURE_REQUEST:
+        return "CLEAR_FEATURE";
+
+    case SET_FEATURE_REQUEST:
+        return "SET_FEATURE";
+
+    case SET_ADDRESS_REQUEST:
+        return "SET_ADDRESS";
+
+    case GET_DESCRIPTOR_REQUEST:
+        return "GET_DESCRIPTOR";
+
+    case SET_DESCRIPTOR_REQUEST:
+        return "SET_DESCRIPTOR";
+
+    case GET_CONFIGURATION_REQUEST:
+        return "GET_CONFIGURATION";
+
+    case SET_CONFIGURATION_REQUEST:
+        return "SET_CONFIGURATION";
+
+    case GET_INTERFACE_REQUEST:
+        return "GET_INTERFACE";
+
+    case SET_INTERFACE_REQUEST:
+        return "SET_INTERFACE";
+
+    case SYNCH_FRAME_REQUEST:
+        return "SYNCH_FRAME";
+    };
+
+    return "UNKNOWN_REQUEST";
+}
+
+static int urb_enqueue(struct device *dev, struct urb *urb)
+{
+    uint8_t ep_type;
+    int number_of_packets = 0;
+    dwc_otg_hcd_urb_t *dwc_urb;
+
+    printf("request type: %s\t(", request_id_to_string(urb->setup_packet[1]));
+    int i;
+    for (i = 0; i < 8; i++) {
+        printf("%X ", urb->setup_packet[i]);
+    }
+    printf("\b)\n");
+
+#if 0
+    printf("memset(urb, 0, sizeof(*urb));\n");
+    printf("urb->pipe = %#X;\n", urb->pipe);
+    printf("urb->flags =  %#X;\n", urb->flags);
+    printf("urb->length = %#X;\n", urb->length);
+    printf("urb->maxpacket = %#X;\n", urb->maxpacket);
+    printf("urb->bw = %#X;\n", urb->bw);
+    printf("urb->interval = %#X;\n", urb->interval);
+    printf("urb->setup_packet[8] = {%#hhX, %#hhX, %#hhX, %#hhX,"
+           "                        %#hhX, %#hhX, %#hhX, %#hhX};\n",
+           urb->setup_packet[0], urb->setup_packet[1], urb->setup_packet[2],
+           urb->setup_packet[3], urb->setup_packet[4], urb->setup_packet[5],
+           urb->setup_packet[6], urb->setup_packet[7]);
+    printf("urb->complete = urb_complete;\n");
+    printf("urb_enqueue(urb);\n");
+#endif
+
+    printf("pipe: %u\n", usb_host_pipetype(urb->pipe));
+
+    switch (usb_host_pipetype(urb->pipe)) {
+    case USB_HOST_PIPE_CONTROL:
+        ep_type = USB_HOST_ENDPOINT_XFER_CONTROL;
+        break;
+
+    case USB_HOST_PIPE_ISOCHRONOUS:
+        ep_type = USB_HOST_ENDPOINT_XFER_ISOC;
+        break;
+
+    case USB_HOST_PIPE_BULK:
+        ep_type = USB_HOST_ENDPOINT_XFER_BULK;
+        break;
+
+    case USB_HOST_PIPE_INTERRUPT:
+        ep_type = USB_HOST_ENDPOINT_XFER_INT;
+        break;
+
+    default:
+        fprintf(stderr, "Invalid EP Type\n");
+        return -EINVAL;
+    }
+
+#if 1
+    if (usb_host_pipetype(urb->pipe) == USB_HOST_PIPE_INTERRUPT) {
+//        asm volatile ("bkpt 0xfa");
+        //urb->pipe = 2;
+        //ep_type = USB_HOST_ENDPOINT_XFER_CONTROL;
+    }
+#endif
+
+    dwc_urb = dwc_otg_hcd_urb_alloc(g_dev->hcd, number_of_packets, 1);
+    if (!dwc_urb)
+        return -ENOMEM;
+
+    urb->hcpriv = dwc_urb;
+
+    dwc_otg_hcd_urb_set_pipeinfo(dwc_urb,
+                                 usb_host_pipedevice(urb->pipe),
+                                 usb_host_pipeendpoint(urb->pipe), ep_type,
+                                 usb_host_pipein(urb->pipe),
+                                 urb->maxpacket);
+
+    dwc_otg_hcd_urb_set_params(dwc_urb, urb, urb->buffer,
+                               (dwc_dma_t) urb->buffer, urb->length,
+                               &urb->setup_packet,
+                               (dwc_dma_t) &urb->setup_packet,
+                               urb->flags, urb->interval);
+
+    return dwc_otg_hcd_urb_enqueue(g_dev->hcd, dwc_urb, &urb->hcpriv_ep, 0);
+    // FIXME if error, then free urb.
+}
+
 static struct device_usb_hcd_type_ops tsb_usb_hcd_type_ops = {
     .start = hcd_start,
     .stop = hcd_stop,
+    .urb_enqueue = urb_enqueue,
     .hub_control = hub_control,
 };
 
