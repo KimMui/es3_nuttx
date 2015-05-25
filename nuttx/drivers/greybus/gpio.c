@@ -38,7 +38,7 @@
 
 static int g_gpio_cport;
 
-static uint8_t gb_gpio_protocol_version(struct gb_operation *operation)
+static uint16_t gb_gpio_protocol_version(struct gb_operation *operation)
 {
     struct gb_gpio_proto_version_response *response;
 
@@ -51,7 +51,7 @@ static uint8_t gb_gpio_protocol_version(struct gb_operation *operation)
     return GB_OP_SUCCESS;
 }
 
-static uint8_t gb_gpio_line_count(struct gb_operation *operation)
+static uint16_t gb_gpio_line_count(struct gb_operation *operation)
 {
     struct gb_gpio_line_count_response *response;
     uint8_t count;
@@ -69,7 +69,7 @@ static uint8_t gb_gpio_line_count(struct gb_operation *operation)
     return GB_OP_SUCCESS;
 }
 
-static uint8_t gb_gpio_activate(struct gb_operation *operation)
+static uint16_t gb_gpio_activate(struct gb_operation *operation)
 {
     struct gb_gpio_activate_request *request =
         gb_operation_get_request_payload(operation);
@@ -81,7 +81,7 @@ static uint8_t gb_gpio_activate(struct gb_operation *operation)
     return GB_OP_SUCCESS;
 }
 
-static uint8_t gb_gpio_deactivate(struct gb_operation *operation)
+static uint16_t gb_gpio_deactivate(struct gb_operation *operation)
 {
     struct gb_gpio_deactivate_request *request =
         gb_operation_get_request_payload(operation);
@@ -93,7 +93,7 @@ static uint8_t gb_gpio_deactivate(struct gb_operation *operation)
     return GB_OP_SUCCESS;
 }
 
-static uint8_t gb_gpio_get_direction(struct gb_operation *operation)
+static uint16_t gb_gpio_get_direction(struct gb_operation *operation)
 {
     struct gb_gpio_get_direction_response *response;
     struct gb_gpio_get_direction_request *request =
@@ -110,7 +110,7 @@ static uint8_t gb_gpio_get_direction(struct gb_operation *operation)
     return GB_OP_SUCCESS;
 }
 
-static uint8_t gb_gpio_direction_in(struct gb_operation *operation)
+static uint16_t gb_gpio_direction_in(struct gb_operation *operation)
 {
     struct gb_gpio_direction_in_request *request =
         gb_operation_get_request_payload(operation);
@@ -122,7 +122,7 @@ static uint8_t gb_gpio_direction_in(struct gb_operation *operation)
     return GB_OP_SUCCESS;
 }
 
-static uint8_t gb_gpio_direction_out(struct gb_operation *operation)
+static uint16_t gb_gpio_direction_out(struct gb_operation *operation)
 {
     struct gb_gpio_direction_out_request *request =
         gb_operation_get_request_payload(operation);
@@ -134,7 +134,7 @@ static uint8_t gb_gpio_direction_out(struct gb_operation *operation)
     return GB_OP_SUCCESS;
 }
 
-static uint8_t gb_gpio_get_value(struct gb_operation *operation)
+static uint16_t gb_gpio_get_value(struct gb_operation *operation)
 {
     struct gb_gpio_get_value_response *response;
     struct gb_gpio_get_value_request *request =
@@ -151,7 +151,7 @@ static uint8_t gb_gpio_get_value(struct gb_operation *operation)
     return GB_OP_SUCCESS;
 }
 
-static uint8_t gb_gpio_set_value(struct gb_operation *operation)
+static uint16_t gb_gpio_set_value(struct gb_operation *operation)
 {
     struct gb_gpio_set_value_request *request =
         gb_operation_get_request_payload(operation);
@@ -163,7 +163,7 @@ static uint8_t gb_gpio_set_value(struct gb_operation *operation)
     return GB_OP_SUCCESS;
 }
 
-static uint8_t gb_gpio_set_debounce(struct gb_operation *operation)
+static uint16_t gb_gpio_set_debounce(struct gb_operation *operation)
 {
     struct gb_gpio_set_debounce_request *request =
         gb_operation_get_request_payload(operation);
@@ -179,7 +179,7 @@ static uint8_t gb_gpio_set_debounce(struct gb_operation *operation)
     return GB_OP_SUCCESS;
 }
 
-static uint8_t gb_gpio_irq_mask(struct gb_operation *operation)
+static uint16_t gb_gpio_irq_mask(struct gb_operation *operation)
 {
     struct gb_gpio_irq_mask_request *request =
         gb_operation_get_request_payload(operation);
@@ -191,7 +191,7 @@ static uint8_t gb_gpio_irq_mask(struct gb_operation *operation)
     return GB_OP_SUCCESS;
 }
 
-static uint8_t gb_gpio_irq_unmask(struct gb_operation *operation)
+static uint16_t gb_gpio_irq_unmask(struct gb_operation *operation)
 {
     struct gb_gpio_irq_unmask_request *request =
         gb_operation_get_request_payload(operation);
@@ -227,7 +227,7 @@ int gb_gpio_irq_event(int irq, FAR void *context)
     return OK;
 }
 
-static uint8_t gb_gpio_irq_type(struct gb_operation *operation)
+static uint16_t gb_gpio_irq_type(struct gb_operation *operation)
 {
     int ret;
     int trigger;

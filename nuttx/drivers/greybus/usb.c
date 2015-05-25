@@ -44,7 +44,7 @@
 
 static struct device *usbdev;
 
-static uint8_t gb_usb_protocol_version(struct gb_operation *operation)
+static uint16_t gb_usb_protocol_version(struct gb_operation *operation)
 {
     struct gb_usb_proto_version_response *response;
 
@@ -58,7 +58,7 @@ static uint8_t gb_usb_protocol_version(struct gb_operation *operation)
     return GB_OP_SUCCESS;
 }
 
-static uint8_t gb_usb_hcd_stop(struct gb_operation *operation)
+static uint16_t gb_usb_hcd_stop(struct gb_operation *operation)
 {
     gb_usb_debug("%s()\n", __func__);
 
@@ -67,7 +67,7 @@ static uint8_t gb_usb_hcd_stop(struct gb_operation *operation)
     return GB_OP_SUCCESS;
 }
 
-static uint8_t gb_usb_hcd_start(struct gb_operation *operation)
+static uint16_t gb_usb_hcd_start(struct gb_operation *operation)
 {
     int retval;
 
@@ -81,7 +81,7 @@ static uint8_t gb_usb_hcd_start(struct gb_operation *operation)
     return GB_OP_SUCCESS;
 }
 
-static uint8_t gb_usb_hub_control(struct gb_operation *operation)
+static uint16_t gb_usb_hub_control(struct gb_operation *operation)
 {
     struct gb_usb_hub_control_response *response;
     struct gb_usb_hub_control_request *request =

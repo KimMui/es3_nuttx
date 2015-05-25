@@ -41,7 +41,7 @@
 #define GB_BATTERY_VERSION_MINOR    0x01
 
 
-static uint8_t gb_battery_protocol_version(struct gb_operation *operation)
+static uint16_t gb_battery_protocol_version(struct gb_operation *operation)
 {
     struct gb_battery_proto_version_response *response;
 
@@ -57,7 +57,7 @@ static uint8_t gb_battery_protocol_version(struct gb_operation *operation)
     return GB_OP_SUCCESS;
 }
 
-static uint8_t gb_battery_technology(struct gb_operation *operation)
+static uint16_t gb_battery_technology(struct gb_operation *operation)
 {
     struct gb_battery_technology_response *response;
 
@@ -72,7 +72,7 @@ static uint8_t gb_battery_technology(struct gb_operation *operation)
     return GB_OP_SUCCESS;
 }
 
-static uint8_t gb_battery_status(struct gb_operation *operation)
+static uint16_t gb_battery_status(struct gb_operation *operation)
 {
     struct gb_battery_status_response *response;
 
@@ -87,7 +87,7 @@ static uint8_t gb_battery_status(struct gb_operation *operation)
     return GB_OP_SUCCESS;
 }
 
-static uint8_t gb_battery_max_voltage(struct gb_operation *operation)
+static uint16_t gb_battery_max_voltage(struct gb_operation *operation)
 {
     struct gb_battery_max_voltage_response *response;
 
@@ -102,7 +102,7 @@ static uint8_t gb_battery_max_voltage(struct gb_operation *operation)
     return GB_OP_SUCCESS;
 }
 
-static uint8_t gb_battery_percent_capacity(struct gb_operation *operation)
+static uint16_t gb_battery_percent_capacity(struct gb_operation *operation)
 {
     struct gb_battery_capacity_response *response;
 
@@ -117,7 +117,7 @@ static uint8_t gb_battery_percent_capacity(struct gb_operation *operation)
     return GB_OP_SUCCESS;
 }
 
-static uint8_t gb_battery_temperature(struct gb_operation *operation)
+static uint16_t gb_battery_temperature(struct gb_operation *operation)
 {
     struct gb_battery_temperature_response *response;
 
@@ -132,7 +132,7 @@ static uint8_t gb_battery_temperature(struct gb_operation *operation)
     return GB_OP_SUCCESS;
 }
 
-static uint8_t gb_battery_voltage(struct gb_operation *operation)
+static uint16_t gb_battery_voltage(struct gb_operation *operation)
 {
     struct gb_battery_voltage_response *response;
 
@@ -147,14 +147,14 @@ static uint8_t gb_battery_voltage(struct gb_operation *operation)
     return GB_OP_SUCCESS;
 }
 
-static uint8_t gb_battery_current(struct gb_operation *operation)
+static uint16_t gb_battery_current(struct gb_operation *operation)
 {
     gb_info("%s()\n", __func__);
 
     return GB_OP_SUCCESS;
 }
 
-static uint8_t gb_battery_capacity(struct gb_operation *operation)
+static uint16_t gb_battery_capacity(struct gb_operation *operation)
 {
     struct gb_battery_capacity_response *response;
 
@@ -169,7 +169,7 @@ static uint8_t gb_battery_capacity(struct gb_operation *operation)
     return GB_OP_SUCCESS;
 }
 
-static uint8_t gb_battery_shutdowntemp(struct gb_operation *operation)
+static uint16_t gb_battery_shutdowntemp(struct gb_operation *operation)
 {
     struct gb_battery_temperature_response *response;
 

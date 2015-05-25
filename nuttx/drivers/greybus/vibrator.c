@@ -45,7 +45,7 @@
 /* Pick a GPIO line exposed on APBridge2 via the schematics */
 #define GB_VIBRATOR_DUMMY_GPIO       0x00
 
-static uint8_t gb_vibrator_protocol_version(struct gb_operation *operation)
+static uint16_t gb_vibrator_protocol_version(struct gb_operation *operation)
 {
     struct gb_vibrator_proto_version_response *response;
 
@@ -59,7 +59,7 @@ static uint8_t gb_vibrator_protocol_version(struct gb_operation *operation)
     return GB_OP_SUCCESS;
 }
 
-static uint8_t gb_vibrator_vibrator_on(struct gb_operation *operation)
+static uint16_t gb_vibrator_vibrator_on(struct gb_operation *operation)
 {
     struct gb_vibrator_on_request *request =
             gb_operation_get_request_payload(operation);
@@ -74,7 +74,7 @@ static uint8_t gb_vibrator_vibrator_on(struct gb_operation *operation)
     return GB_OP_SUCCESS;
 }
 
-static uint8_t gb_vibrator_vibrator_off(struct gb_operation *operation)
+static uint16_t gb_vibrator_vibrator_off(struct gb_operation *operation)
 {
     // Deactivate the GPIO line, somehow.
 

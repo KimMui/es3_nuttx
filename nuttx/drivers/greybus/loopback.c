@@ -34,7 +34,7 @@
 #define GB_LOOPBACK_VERSION_MAJOR 0
 #define GB_LOOPBACK_VERSION_MINOR 1
 
-static uint8_t gb_loopback_protocol_version(struct gb_operation *operation)
+static uint16_t gb_loopback_protocol_version(struct gb_operation *operation)
 {
     struct gb_loopback_proto_version_response *response;
 
@@ -47,7 +47,7 @@ static uint8_t gb_loopback_protocol_version(struct gb_operation *operation)
     return GB_OP_SUCCESS;
 }
 
-static uint8_t gb_loopback_transfer(struct gb_operation *operation)
+static uint16_t gb_loopback_transfer(struct gb_operation *operation)
 {
     struct gb_loopback_transfer_response *response;
     struct gb_loopback_transfer_request *request =
@@ -61,7 +61,7 @@ static uint8_t gb_loopback_transfer(struct gb_operation *operation)
     return GB_OP_SUCCESS;
 }
 
-static uint8_t gb_loopback_ping(struct gb_operation *operation)
+static uint16_t gb_loopback_ping(struct gb_operation *operation)
 {
     return GB_OP_SUCCESS;
 }

@@ -40,7 +40,7 @@
 struct gb_operation;
 
 typedef void (*gb_operation_callback)(struct gb_operation *operation);
-typedef uint8_t (*gb_operation_handler_t)(struct gb_operation *operation);
+typedef uint16_t (*gb_operation_handler_t)(struct gb_operation *operation);
 typedef void (*gb_operation_fast_handler_t)(unsigned int cport, void *data);
 
 #define GB_HANDLER(t, h) \
@@ -114,6 +114,8 @@ enum gb_operation_result {
     GB_OP_NONEXISTENT   = 0x08,
     GB_OP_UNKNOWN_ERROR = 0xfe,
     GB_OP_MALFUNCTION   = 0xff,
+
+    GB_OP_NO_RESPONSE   = 0x0100 | GB_OP_MALFUNCTION,
 };
 
 static inline void*

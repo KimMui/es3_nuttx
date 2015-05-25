@@ -46,7 +46,7 @@
 /* TODO move it inside a struct */
 struct i2c_dev_s *i2c_dev = NULL;
 
-static uint8_t gb_i2c_protocol_version(struct gb_operation *operation)
+static uint16_t gb_i2c_protocol_version(struct gb_operation *operation)
 {
     struct gb_i2c_proto_version_response *response;
 
@@ -59,7 +59,7 @@ static uint8_t gb_i2c_protocol_version(struct gb_operation *operation)
     return GB_OP_SUCCESS;
 }
 
-static uint8_t gb_i2c_protocol_functionality(struct gb_operation *operation)
+static uint16_t gb_i2c_protocol_functionality(struct gb_operation *operation)
 {
     struct gb_i2c_functionality_rsp *response;
 
@@ -74,17 +74,17 @@ static uint8_t gb_i2c_protocol_functionality(struct gb_operation *operation)
     return GB_OP_SUCCESS;
 }
 
-static uint8_t gb_i2c_protocol_timeout(struct gb_operation *operation)
+static uint16_t gb_i2c_protocol_timeout(struct gb_operation *operation)
 {
     return GB_OP_SUCCESS;
 }
 
-static uint8_t gb_i2c_protocol_retries(struct gb_operation *operation)
+static uint16_t gb_i2c_protocol_retries(struct gb_operation *operation)
 {
     return GB_OP_SUCCESS;
 }
 
-static uint8_t gb_i2c_protocol_transfer(struct gb_operation *operation)
+static uint16_t gb_i2c_protocol_transfer(struct gb_operation *operation)
 {
     int i, op_count;
     uint32_t size = 0;

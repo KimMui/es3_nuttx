@@ -96,7 +96,7 @@ static void gb_process_request(struct gb_operation_hdr *hdr,
                                struct gb_operation *operation)
 {
     struct gb_operation_handler *op_handler;
-    uint8_t result;
+    uint16_t result;
 
     op_handler = find_operation_handler(hdr->type, operation->cport);
     if (!op_handler) {
@@ -105,7 +105,7 @@ static void gb_process_request(struct gb_operation_hdr *hdr,
     }
 
     result = op_handler->handler(operation);
-    if (hdr->id)
+    if (hdr->id && result != GB_OP_NO_RESPONSE)
         gb_operation_send_response(operation, result);
 }
 
