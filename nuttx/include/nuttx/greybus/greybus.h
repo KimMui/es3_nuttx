@@ -102,6 +102,15 @@ struct gb_operation_hdr {
     uint8_t pad[2];
 };
 
+typedef unsigned int (*gb_work_func_t)(struct gb_operation *operation);
+
+struct gb_workqueue {
+    pthread_t thread;
+    bool exit;
+    sem_t semaphore;
+    struct list_head queue;
+};
+
 enum gb_operation_result {
     GB_OP_SUCCESS       = 0x00,
     GB_OP_INTERRUPTED   = 0x01,
