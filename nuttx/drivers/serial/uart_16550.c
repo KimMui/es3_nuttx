@@ -297,8 +297,6 @@ static uart_dev_t g_uart3port =
 
 /* Which UART with be tty0/console and which tty1? tty2? tty3? */
 
-#define TTYS0_DEV       g_uart0port
-
 #if defined(CONFIG_16550_UART0_SERIAL_CONSOLE)
 #  define CONSOLE_DEV     g_uart0port    /* UART0=console */
 #  define TTYS0_DEV       g_uart0port    /* UART0=ttyS0 */
