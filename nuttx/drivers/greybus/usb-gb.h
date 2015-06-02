@@ -31,6 +31,49 @@
 
 #include <nuttx/greybus/types.h>
 
+#define GB_USB_HOST_DIR_OUT                 0
+#define GB_USB_HOST_DIR_IN                  0x80
+
+#define GB_USB_HOST_PIPE_ISOCHRONOUS        0
+#define GB_USB_HOST_PIPE_INTERRUPT          1
+#define GB_USB_HOST_PIPE_CONTROL            2
+#define GB_USB_HOST_PIPE_BULK               3
+
+#define gb_usb_host_pipein(pipe)            ((pipe) & GB_USB_HOST_DIR_IN)
+#define gb_usb_host_pipeout(pipe)           (!gb_usb_host_pipein(pipe))
+
+#define gb_usb_host_pipedevice(pipe)        (((pipe) >> 8) & 0x7f)
+#define gb_usb_host_pipeendpoint(pipe)      (((pipe) >> 15) & 0xf)
+
+#define gb_usb_host_pipetype(pipe)          (((pipe) >> 30) & 3)
+#define gb_usb_host_pipeisoc(pipe) \
+    (gb_usb_host_pipetype((pipe)) == GB_USB_HOST_PIPE_ISOCHRONOUS)
+#define gb_usb_host_pipeint(pipe) \
+    (gb_usb_host_pipetype((pipe)) == GB_USB_HOST_PIPE_INTERRUPT)
+#define gb_usb_host_pipecontrol(pipe) \
+    (gb_usb_host_pipetype((pipe)) == GB_USB_HOST_PIPE_CONTROL)
+#define gb_usb_host_pipebulk(pipe) \
+    (gb_usb_host_pipetype((pipe)) == GB_USB_HOST_PIPE_BULK)
+
+#define GB_USB_HOST_URB_SHORT_NOT_OK        0x0001
+#define GB_USB_HOST_URB_ISO_ASAP            0x0002
+#define GB_USB_HOST_URB_NO_TRANSFER_DMA_MAP 0x0004
+#define GB_USB_HOST_URB_NO_FSBR             0x0020
+#define GB_USB_HOST_URB_ZERO_PACKET         0x0040
+#define GB_USB_HOST_URB_NO_INTERRUPT        0x0080
+#define GB_USB_HOST_URB_FREE_BUFFER         0x0100
+
+#define GB_USB_HOST_URB_DIR_IN              0x0200
+#define GB_USB_HOST_URB_DIR_OUT             0
+#define GB_USB_HOST_URB_DIR_MASK            GB_USB_HOST_URB_DIR_IN
+
+#define GB_USB_HOST_ENDPOINT_XFERTYPE_MASK  0x03
+#define GB_USB_HOST_ENDPOINT_XFER_CONTROL   0
+#define GB_USB_HOST_ENDPOINT_XFER_ISOC      1
+#define GB_USB_HOST_ENDPOINT_XFER_BULK      2
+#define GB_USB_HOST_ENDPOINT_XFER_INT       3
+#define GB_USB_HOST_ENDPOINT_MAX_ADJUSTABLE 0x80
+
 /* Version of the Greybus USB protocol we support */
 #define GB_USB_VERSION_MAJOR		0x00
 #define GB_USB_VERSION_MINOR		0x01
