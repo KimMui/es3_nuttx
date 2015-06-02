@@ -78,7 +78,12 @@ static uint32_t semihosting_syscall(int syscall, uint32_t *params)
     return result;
 }
 
-static int semihosting_open(const char *const filename, int mode)
+int semihosting_errno(void)
+{
+    return semihosting_syscall(0x13, NULL);
+}
+
+int semihosting_open(const char *const filename, int mode)
 {
     uint32_t params[] = {
         (uint32_t) filename,
@@ -105,6 +110,34 @@ static ssize_t semihosting_read(struct file *filep, char *buffer, size_t buflen)
     nread = semihosting_syscall(SYSCALL_READ, &params[0]);
 
     return buflen - nread;
+}
+
+ssize_t semihosting_read_real(int fd, const char *buffer, size_t buflen)
+{
+    ssize_t nread;
+    uint32_t params[3];
+
+    params[0] = (uint32_t) fd;
+    params[1] = (uint32_t) buffer;
+    params[2] = (uint32_t) buflen;
+
+    nread = semihosting_syscall(SYSCALL_READ, &params[0]);
+
+    return !nread ? buflen : buflen - nread;
+}
+
+ssize_t semihosting_write_real(int fd, const char *buffer, size_t buflen)
+{
+    size_t not_written = 0;
+    uint32_t params[3];
+
+    params[0] = (uint32_t) fd;
+    params[1] = (uint32_t) buffer;
+    params[2] = (uint32_t) buflen;
+
+    not_written = semihosting_syscall(SYSCALL_WRITE, &params[0]);
+
+    return buflen - not_written;
 }
 
 static ssize_t semihosting_write(struct file *filep, const char *buffer,

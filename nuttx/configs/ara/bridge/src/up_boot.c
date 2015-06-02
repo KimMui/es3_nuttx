@@ -45,6 +45,7 @@
 #endif
 
 void tsb_boardinitialize(void) {
+    return;
     early_dbg("\n********************************************************************************\n");
     early_dbg("Ara Bridge FW version: %s\n", ARA_FW_VERSION);
     early_dbg("Build: %s\n", ARA_FW_BUILD_INFO);

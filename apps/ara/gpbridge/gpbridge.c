@@ -29,7 +29,7 @@ int bridge_main(int argc, char *argv[])
 
     enable_manifest("IID-1", NULL);
     gb_unipro_init();
-    enable_cports();
+    //enable_cports();
 
 #ifdef CONFIG_EXAMPLES_NSH
     printf("Calling NSH\n");

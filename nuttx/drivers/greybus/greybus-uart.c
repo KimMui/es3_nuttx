@@ -33,7 +33,9 @@
 #include <string.h>
 #include <stdio.h>
 
-#define DEBUG_TX
+//#define DEBUG_TX
+//#define DEBUG_RX
+
 #define INPUT_BUFFER_SIZE 4096
 #define TYPE_RESPONSE_FLAG      0x80
 

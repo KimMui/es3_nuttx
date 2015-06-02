@@ -88,7 +88,7 @@
 #define GB_USB_TYPE_URB_COMPLETION	0x0b
 
 
-#define ASYNC_URB_ENQUEUE
+//#define ASYNC_URB_ENQUEUE
 
 struct gb_usb_proto_version_response {
 	__u8	major;

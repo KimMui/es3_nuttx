@@ -146,7 +146,7 @@ dwc_bool_t DWC_IN_BH(void)
 
 void DWC_VPRINTF(char *format, va_list args)
 {
-    lowvsyslog(format, args);
+//    lowvsyslog(format, args);
 }
 
 int DWC_VSNPRINTF(char *str, int size, char *format, va_list args)

@@ -7,15 +7,37 @@
 #include <nuttx/syslog/ramlog.h>
 
 #include <arch/board/board.h>
+#include <arch/chip/gpio.h>
 
 #include "up_arch.h"
 #include "up_internal.h"
 
-int main(int argc, char **argv) {
-    int i = 0;
-    while (1) {
-        lldbg("hello world: %d\n", i++);
-        asm volatile("nop");
-    }
+#include "usb/dwc_otg_dbg.h"
+
+int main(int argc, char **argv)
+{
+    printf("\n\n===== USB Host Dev FW =====\n");
+
+//    SET_DEBUG_LEVEL(DBG_ANY);
+
+    tsb_gpio_register(NULL);
+
+    tsb_device_table_register();
+    tsb_driver_register();
+
+#if 1
+    int gb_uart_init(void);
+    gb_uart_init();
+
+    void gb_usb_register(int cport);
+    gb_usb_register(0);
+#else
+    test_hsic_link();
+#endif
+
+
+    gb_replay(0, "./debug.log");
+//    while (1);
+
     return 0;
 }

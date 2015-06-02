@@ -58,6 +58,8 @@ struct gb_cport_driver {
 static atomic_t request_id;
 static struct gb_cport_driver g_cport[CPORT_MAX];
 static struct gb_transport_backend *transport_backend;
+static pthread_t timeout_thread;
+static int fd;
 
 static int gb_compare_handlers(const void *data1, const void *data2)
 {
@@ -104,6 +106,7 @@ static void gb_process_request(struct gb_operation_hdr *hdr,
         return;
     }
 
+    printf("\n\ngreybus: processing request %d\n", hdr->id);
     result = op_handler->handler(operation);
     if (hdr->id)
         gb_operation_send_response(operation, result);
@@ -225,6 +228,9 @@ int greybus_rx_handler(unsigned int cport, void *data, size_t size)
 
     if (sizeof(*hdr) > size || hdr->size > size || sizeof(*hdr) > hdr->size)
         return -EINVAL; /* Dropping garbage request */
+
+    semihosting_write_real(fd, &size, sizeof(size));
+    semihosting_write_real(fd, data, size);
 
     op_handler = find_operation_handler(hdr->type, cport);
     if (op_handler && op_handler->fast_handler) {
@@ -521,6 +527,8 @@ int gb_init(struct gb_transport_backend *transport)
     if (!transport)
         return -EINVAL;
 
+    fd = semihosting_open("./gb-usb-dump.log", 4);
+
     memset(&g_cport, 0, sizeof(g_cport));
     for (i = 0; i < CPORT_MAX; i++) {
         sem_init(&g_cport[i].rx_fifo_lock, 0, 0);
@@ -532,6 +540,52 @@ int gb_init(struct gb_transport_backend *transport)
 
     transport_backend = transport;
     transport_backend->init();
+
+    return 0;
+}
+
+int gb_replay(int cport, const char *pathname)
+{
+    uint32_t message_size;
+    char buffer[512];
+    ssize_t nread;
+    int retval;
+
+    DEBUGASSERT(pathname);
+
+    printf("greybus: replaying '%s'...\n", pathname);
+
+    fd = semihosting_open(pathname, 0);
+    if (fd < 0)
+        return fd;
+
+    while (1) {
+        nread = semihosting_read_real(fd, &message_size, sizeof(message_size));
+        if (!nread)
+            break;
+
+        if (nread != sizeof(message_size)) {
+            fprintf(stderr, "greybus: invalid sequence while replaying '%s', aborting...",
+                    pathname);
+            return -EINVAL;
+        }
+
+        // TODO check whether message_size is not biffer than the buffer
+
+        nread = semihosting_read_real(fd, buffer, message_size);
+
+        // TODO check whether nread == message_size
+
+        printf("greybus_rx_handler(%d, %p, %u)\n", cport, buffer, message_size);
+        retval = greybus_rx_handler(cport, buffer, message_size);
+
+        //sleep(2);
+        struct timespec time = {.tv_nsec = 100000000};
+        nanosleep(&time, NULL);
+        // TODO check retval
+    }
+
+    // TODO close fd
 
     return 0;
 }
