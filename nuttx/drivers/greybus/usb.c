@@ -60,7 +60,7 @@ static uint8_t gb_usb_protocol_version(struct gb_operation *operation)
 
 static uint8_t gb_usb_hcd_stop(struct gb_operation *operation)
 {
-    gb_usb_debug("%s()\n", __func__);
+    gb_usb_debug("device_usb_hcd_stop(usbdev);\n");
 
     device_usb_hcd_stop(usbdev);
 
@@ -71,7 +71,7 @@ static uint8_t gb_usb_hcd_start(struct gb_operation *operation)
 {
     int retval;
 
-    gb_usb_debug("%s()\n", __func__);
+    gb_usb_debug("device_usb_hcd_start(usbdev, &usb4624);\n");
 
     retval = device_usb_hcd_start(usbdev);
     if (retval) {
@@ -88,6 +88,7 @@ static void gb_usb_urb_complete(struct urb *urb)
 
 static uint8_t gb_usb_urb_enqueue(struct gb_operation *operation)
 {
+    int i;
     int retval;
     int op_status = GB_OP_SUCCESS;
     struct urb *urb;
@@ -95,14 +96,13 @@ static uint8_t gb_usb_urb_enqueue(struct gb_operation *operation)
     struct gb_usb_urb_enqueue_request *request =
         gb_operation_get_request_payload(operation);
 
-    gb_usb_debug("%s()\n", __func__);
+    gb_usb_debug("device_usb_hcd_urb_enqueue(usbdev, urb);\n");
 
-    urb = zalloc(sizeof(*urb)); // FIXME: ref
+    urb = urb_create();
     if (!urb) {
         return GB_OP_NO_MEMORY;
     }
 
-    sem_init(&urb->semaphore, 0, 0);
     urb->urb = NULL;
     urb->pipe = request->pipe;
     urb->length = request->transfer_buffer_length;
@@ -115,9 +115,11 @@ static uint8_t gb_usb_urb_enqueue(struct gb_operation *operation)
     urb->complete = gb_usb_urb_complete;
     memcpy(urb->setup_packet, request->setup_packet, sizeof(urb->setup_packet));
 
+#if 1
     printf("urb->devnum = %d\n", urb->devnum);
     printf("urb->dev_ttport = %d\n", urb->dev_ttport);
     printf("urb->dev_speed = %hhu\n", urb->dev_speed);
+#endif
 
     if (request->transfer_buffer_length) {
         urb->buffer = malloc(request->transfer_buffer_length);
@@ -154,15 +156,47 @@ static uint8_t gb_usb_urb_enqueue(struct gb_operation *operation)
         goto end;
     }
 
-    memset(response, 0, sizeof(*response) + urb->actual_length);
-
-    printf("\nGot a response back from device: %d %d\n",
-           urb->actual_length,
-           urb->status);
-
     response->actual_length = urb->actual_length;
     response->status = urb->status;
     memcpy(response->payload, urb->buffer, urb->actual_length);
+
+    printf("\ndevice response: %d (%u bytes)\n", urb->status, urb->actual_length);
+
+    for (i = 0; i < urb->actual_length; i++) {
+        printf("%.2X ", ((char*) (urb->buffer))[i]);
+    }
+    printf("\n");
+
+    if (urb->setup_packet[1] == GET_DESCRIPTOR_REQUEST) {
+        struct usb_std_dev_descriptor *descriptor = urb->buffer;
+        struct usb_unicode_string_descriptor *str_desc = urb->buffer;
+
+        if (urb->setup_packet[3] == 1 && urb->setup_packet[0] == 0x80) {
+            printf("\tdescriptor length: %hhu\n", descriptor->bLength);
+            printf("\tdescriptor type: %hhu\n", descriptor->bDescriptorType);
+            printf("\tusb version: %hX\n", descriptor->bcdUSB);
+            printf("\tclass: %hhu-%hhu\n", descriptor->bDeviceClass,
+                                         descriptor->bDeviceSubClass);
+            printf("\tprotocol: %hhu\n", descriptor->bDeviceProtocol);
+            printf("\tmax packet size: %hhu\n", descriptor->bMaxPacketSize0);
+            printf("\tVendor ID: %.4hX\n", descriptor->idVendor);
+            printf("\tProduct ID: %.4hX\n", descriptor->idProduct);
+            printf("\tDevice Release: %hX\n", descriptor->bcdDevice);
+            printf("\tManufacturer index: %hhu\n", descriptor->iManufacturer);
+            printf("\tProduct index: %hhu\n", descriptor->iProduct);
+            printf("\tSerial Number index: %hhu\n", descriptor->iSerialNumber);
+            printf("\tConfiguration count: %hhu\n", descriptor->bNumConfigurations);
+        } else if (urb->setup_packet[3] == 3 && urb->setup_packet[0] == 0x80) {
+            for (i = offsetof(struct usb_unicode_string_descriptor, bString);
+                 i < str_desc->bLength; i += 2) {
+                 printf("%c", str_desc->bString[i - offsetof(struct usb_unicode_string_descriptor, bString)]);
+            }
+        } else {
+                    printf("=========================================================== WARNING: requesting non-device descriptor %d\n", urb->setup_packet[3]);
+        }
+    }
+
+//    while (urb->status < 0);
 
 #if TX_DEBUG
     {
@@ -179,7 +213,7 @@ static uint8_t gb_usb_urb_enqueue(struct gb_operation *operation)
 
 end:
     free(urb->buffer);
-    free(urb);
+    urb_destroy(urb);
 
     return op_status;
 }
@@ -215,10 +249,27 @@ static uint8_t gb_usb_hub_control(struct gb_operation *operation)
 
 static int gb_usb_init(unsigned int cport)
 {
+    ssize_t nwrote;
+    char buf[64];
+    int fd;
+
     usbdev = device_open(DEVICE_TYPE_USB_HCD, 0);
     if (!usbdev) {
         return -ENODEV;
     }
+
+#if 0
+    device_usb_hcd_start(usbdev, &usb4624);
+    device_usb_hcd_hub_control(usbdev, 0xA006, 0x2900, 0x0, buf, 0xF);
+    device_usb_hcd_hub_control(usbdev, 0xA000, 0x0, 0x0, buf, 0x4);
+    device_usb_hcd_hub_control(usbdev, 0x2303, 0x8, 0x1, buf, 0x0);
+    device_usb_hcd_hub_control(usbdev, 0xA300, 0x0, 0x1, buf, 0x4);
+    device_usb_hcd_hub_control(usbdev, 0x2301, 0x10, 0x1, buf, 0x0);
+    device_usb_hcd_hub_control(usbdev, 0xA300, 0x0, 0x1, buf, 0x4);
+    device_usb_hcd_hub_control(usbdev, 0x2303, 0x4, 0x1, buf, 0x0);
+    device_usb_hcd_hub_control(usbdev, 0xA300, 0x0, 0x1, buf, 0x4);
+    device_usb_hcd_hub_control(usbdev, 0x2301, 0x14, 0x1, buf, 0x0);
+#endif
 
     return 0;
 }
