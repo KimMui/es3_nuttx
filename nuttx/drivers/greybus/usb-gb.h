@@ -85,7 +85,10 @@
 #define GB_USB_TYPE_HCD_START		0x03
 #define GB_USB_TYPE_URB_ENQUEUE		0x04
 #define GB_USB_TYPE_HUB_CONTROL		0x07
+#define GB_USB_TYPE_URB_COMPLETION	0x0b
 
+
+#define ASYNC_URB_ENQUEUE
 
 struct gb_usb_proto_version_response {
 	__u8	major;
@@ -107,7 +110,19 @@ struct gb_usb_urb_enqueue_request {
 	u8 payload[0];
 };
 
+#if defined(ASYNC_URB_ENQUEUE)
 struct gb_usb_urb_enqueue_response {
+};
+#else
+struct gb_usb_urb_enqueue_response {
+	__le32 status;
+	__le32 actual_length;
+	u8 payload[0];
+};
+#endif
+
+struct gb_usb_urb_completion_request {
+	__le64 urb;
 	__le32 status;
 	__le32 actual_length;
 	u8 payload[0];
