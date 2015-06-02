@@ -118,6 +118,12 @@ struct usb_std_config_descriptor {
     uint8_t bMaxPower;
 };
 
+struct usb_unicode_string_descriptor {
+    uint8_t bLength;
+    uint8_t bDescriptorType;
+    uint8_t bString[0];
+};
+
 struct urb;
 typedef void (*urb_complete_t)(struct urb *urb);
 
