@@ -531,6 +531,26 @@ size_t gb_operation_get_request_payload_size(struct gb_operation *operation)
     return hdr->size - sizeof(*hdr);
 }
 
+int gb_operation_get_request_result(struct gb_operation *operation)
+{
+    struct gb_operation_hdr *hdr;
+
+    if (!operation) {
+        return -EINVAL;
+    }
+
+    hdr = operation->response_buffer;
+    if (!hdr) {
+        return GB_OP_TIMEOUT;
+    }
+
+    if (hdr->size < sizeof(*hdr)) {
+        return -EINVAL;
+    }
+
+    return hdr->result;
+}
+
 int gb_init(struct gb_transport_backend *transport)
 {
     int i;
