@@ -40,7 +40,8 @@ SECTIONS
     .text : {
         _stext = ABSOLUTE(.);
         *(.vectors)
-        *(.text .text.*)
+        KEEP(*(.text))
+        *(.text.*)
         *(.fixup)
         *(.gnu.warning)
         *(.rodata .rodata.*)
