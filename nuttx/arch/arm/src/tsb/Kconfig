@@ -112,3 +112,7 @@ config TSB_TRACE_DRIVESTRENGTH_MAX
 		Selects the highest possible drive strength for the TRACE signals
 
 endchoice
+
+config DWC_NOPRINTF
+	bool "Disable DWC printf (and alike)"
+	default n
