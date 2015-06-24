@@ -41,14 +41,11 @@ static int gb_unipro_listen(unsigned int cport)
 {
     int ret;
 
-    do {
-        ret = unipro_init_cport(cport);
-        if (!ret)
-            ret = unipro_driver_register(&greybus_driver, cport);
-        else
-            usleep(200000);
-    } while (ret == -ENOTCONN);
-    return ret;
+    ret = unipro_init_cport(cport);
+    if (ret)
+        return ret;
+
+    return unipro_driver_register(&greybus_driver, cport);
 }
 
 static int gb_unipro_stop_listening(unsigned int cport)
