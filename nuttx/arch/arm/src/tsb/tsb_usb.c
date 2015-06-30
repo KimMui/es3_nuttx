@@ -447,10 +447,25 @@ error_enqueue:
     return retval;
 }
 
+static int urb_dequeue(struct device *dev, struct urb *urb)
+{
+    DEBUGASSERT(g_dev);
+    DEBUGASSERT(g_dev->hcd);
+    DEBUGASSERT(urb);
+
+    if (!urb->hcpriv) {
+        return -EINVAL;
+    }
+
+    return dwc_otg_hcd_urb_dequeue(g_dev->hcd,
+                                   (dwc_otg_hcd_urb_t*) urb->hcpriv);
+}
+
 static struct device_usb_hcd_type_ops tsb_usb_hcd_type_ops = {
     .start = hcd_start,
     .stop = hcd_stop,
     .urb_enqueue = urb_enqueue,
+    .urb_dequeue = urb_dequeue,
     .hub_control = hub_control,
 };
 
