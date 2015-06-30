@@ -171,6 +171,14 @@ static uint8_t gb_usb_urb_enqueue(struct gb_operation *operation)
     }
 
 #if defined(ASYNC_URB_ENQUEUE)
+    response = gb_operation_alloc_response(operation, sizeof(*response));
+    if (!response) {
+        op_status = GB_OP_NO_MEMORY;
+        goto error;
+    }
+
+    response->urb = urb;
+
     return op_status;
 #else
     sem_wait(&urb->semaphore);
@@ -183,8 +191,6 @@ static uint8_t gb_usb_urb_enqueue(struct gb_operation *operation)
         goto error;
     }
 
-    memset(response, 0, sizeof(*response) + urb->actual_length);
-
     response->actual_length = urb->actual_length;
     response->status = urb->status;
     memcpy(response->payload, urb->buffer, urb->actual_length);
@@ -195,6 +201,24 @@ error:
     urb_destroy(urb);
 
     return op_status;
+}
+
+static uint8_t gb_usb_urb_dequeue(struct gb_operation *operation)
+{
+    int retval;
+    struct gb_usb_urb_dequeue_request *request =
+        gb_operation_get_request_payload(operation);
+
+    if (gb_operation_get_request_payload_size(operation) < sizeof(*request)) {
+        return GB_OP_INVALID;
+    }
+
+    retval = device_usb_hcd_urb_dequeue(usbdev, (struct urb*) request->urb);
+    if (retval) {
+        return GB_OP_UNKNOWN_ERROR;
+    }
+
+    return GB_OP_SUCCESS;
 }
 
 static uint8_t gb_usb_hub_control(struct gb_operation *operation)
@@ -257,6 +281,7 @@ static struct gb_operation_handler gb_usb_handlers[] = {
     GB_HANDLER(GB_USB_TYPE_HCD_STOP, gb_usb_hcd_stop),
     GB_HANDLER(GB_USB_TYPE_HCD_START, gb_usb_hcd_start),
     GB_HANDLER(GB_USB_TYPE_URB_ENQUEUE, gb_usb_urb_enqueue),
+    GB_HANDLER(GB_USB_TYPE_URB_DEQUEUE, gb_usb_urb_dequeue),
     GB_HANDLER(GB_USB_TYPE_HUB_CONTROL, gb_usb_hub_control),
 };
 

@@ -44,6 +44,7 @@
 #define GB_USB_TYPE_HCD_STOP		0x02
 #define GB_USB_TYPE_HCD_START		0x03
 #define GB_USB_TYPE_URB_ENQUEUE		0x04
+#define GB_USB_TYPE_URB_DEQUEUE		0x05
 #define GB_USB_TYPE_HUB_CONTROL		0x07
 #define GB_USB_TYPE_URB_COMPLETION	0x0b
 
@@ -58,9 +59,9 @@ struct gb_usb_urb_enqueue_request {
 	__le32 transfer_buffer_length;
 	__le32 maxpacket;
 	__le32 interval;
-	__le64 hcpriv_ep;
+	__le64 hcpriv_ep; // TODO: remove
 	__le32 number_of_packets;
-	__u8   dev_speed;
+	__u8   dev_speed; // FIXME: pack
 	__le32 devnum;
 	__le32 dev_ttport;
 	u8 setup_packet[8];
@@ -69,6 +70,7 @@ struct gb_usb_urb_enqueue_request {
 
 #if defined(ASYNC_URB_ENQUEUE)
 struct gb_usb_urb_enqueue_response {
+	__le32 urb; // FIXME: hack in order to get quickly something "working"
 };
 #else
 struct gb_usb_urb_enqueue_response {
@@ -77,6 +79,10 @@ struct gb_usb_urb_enqueue_response {
 	u8 payload[0];
 };
 #endif
+
+struct gb_usb_urb_dequeue_request {
+	__le32 urb;
+};
 
 struct gb_usb_urb_completion_request {
 	__le64 urb;
