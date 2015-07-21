@@ -253,6 +253,8 @@ void up_initialize(void)
   semihosting_consoleinit();
 #elif defined(CONFIG_APB_USB_LOG)
   usb_log_init();
+#elif defined(CONFIG_GREYBUS_REMOTE_CONSOLE)
+  greybus_consoleinit();
 #endif
 
   /* Initialize the Random Number Generator (RNG)  */

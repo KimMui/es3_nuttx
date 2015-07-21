@@ -145,6 +145,12 @@ bundle = 1
 id = 15
 protocol = 0x13
 
+; Remote Console protocol on CPort 18
+[cport-descriptor "18"]
+bundle = 1
+id = 18
+protocol = 0x04
+
 ; Bundle 1
 ; It is unclear what the 'class' field should be set to
 [bundle-descriptor "1"]

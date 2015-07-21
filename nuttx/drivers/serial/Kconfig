@@ -570,6 +570,10 @@ config ARM_SEMIHOSTING_CONSOLE
 	select ARM_SEMIHOSTING
 	depends on ARCH_ARM
 
+config GB_REMOTE_CONSOLE
+	bool "Greybus Remote Console"
+	select GREYBUS_REMOTE_CONSOLE
+
 config UART_SERIAL_CONSOLE
 	bool "UART"
 	depends on ARCH_HAVE_UART

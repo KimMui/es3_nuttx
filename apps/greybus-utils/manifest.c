@@ -186,12 +186,10 @@ void enable_cports(void)
         }
 #endif
 
-#ifdef CONFIG_GREYBUS_UART_PHY
         if (protocol == GREYBUS_PROTOCOL_UART) {
             gb_info("Registering Uart greybus driver. id= %d\n", id);
-            gb_uart_register(id);
+            gb_remote_console_register(id);
         }
-#endif
     }
 }
 #endif

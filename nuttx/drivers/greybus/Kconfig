@@ -79,3 +79,7 @@ config GREYBUS_UART_PHY
 	bool "UART PHY support"
 	select DEVICE_CORE
 	default n
+
+config GREYBUS_REMOTE_CONSOLE
+	bool "Remote console"
+	default n

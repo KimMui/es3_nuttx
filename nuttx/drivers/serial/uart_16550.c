@@ -1141,7 +1141,7 @@ void up_earlyserialinit(void)
 
 void up_serialinit(void)
 {
-#ifdef CONSOLE_DEV
+#if defined(CONSOLE_DEV) && !defined(CONFIG_GB_REMOTE_CONSOLE)
   (void)uart_register("/dev/console", &CONSOLE_DEV);
 #endif
 #ifdef TTYS0_DEV
