@@ -156,21 +156,9 @@ static struct apbridge_usb_driver usb_driver = {
 
 int bridge_main(int argc, char *argv[])
 {
-    tsb_gpio_register(NULL);
-
     svc_register(recv_from_svc);
     apbridge_backend_register(&apbridge_backend);
     usbdev_apbinitialize(&usb_driver);
-
-#ifdef CONFIG_BOARD_HAVE_DISPLAY
-    display_init(NULL);
-#endif
-
-    sleep(1);
-
-#ifdef CONFIG_ARA_BRIDGE_HAVE_CAMERA
-    camera_init();
-#endif
 
 #ifdef CONFIG_EXAMPLES_NSH
     printf("Calling NSH\n");
