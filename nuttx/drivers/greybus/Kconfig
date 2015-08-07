@@ -78,3 +78,9 @@ config GREYBUS_UART_PHY
 	bool "UART PHY support"
 	select DEVICE_CORE
 	default n
+
+config GREYBUS_TAPE_ARM_SEMIHOSTING
+	bool "ARM Semihosting GB Taping"
+	depends on ARCH_ARM
+	select ARM_SEMIHOSTING
+	default n
