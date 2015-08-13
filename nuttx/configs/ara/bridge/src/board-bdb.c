@@ -132,17 +132,10 @@ static void board_camera_init(void)
 #endif
 }
 
-void board_initialize(void)
+void module_init(void)
 {
-    tsb_gpio_register(NULL);
-
-#ifdef CONFIG_DEVICE_CORE
-    tsb_device_table_register();
     device_table_register(&bdb_device_table);
-
-    tsb_driver_register();
     bdb_driver_register();
-#endif
 
     board_display_init();
     board_camera_init();

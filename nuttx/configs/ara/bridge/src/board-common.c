@@ -1,5 +1,5 @@
-/*
- * Copyright (c) 2015 Google, Inc.
+/**
+ * Copyright (c) 2015 Google Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -10,7 +10,7 @@
  * this list of conditions and the following disclaimer in the documentation
  * and/or other materials provided with the distribution.
  * 3. Neither the name of the copyright holder nor the names of its
- * * may be used to endorse or promote products derived from this
+ * contributors may be used to endorse or promote products derived from this
  * software without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
@@ -24,22 +24,72 @@
  * WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
  * OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ * Author: Fabien Parent <fparent@baylibre.com>
  */
 
-/****************************************************************************
- * Included Files
- ****************************************************************************/
+#include <stdlib.h>
+#include <unistd.h>
+#include <syslog.h>
 
 #include <nuttx/config.h>
-#include <apps/nsh.h>
+#include <nuttx/device.h>
+#include <nuttx/device_table.h>
+#include <nuttx/util.h>
+#include <nuttx/usb.h>
+#include <nuttx/i2c.h>
+#include <nuttx/gpio/tca64xx.h>
 
-int bridge_main(int argc, char *argv[])
-{
-#ifdef CONFIG_EXAMPLES_NSH
-    printf("Calling NSH\n");
-    return nsh_main(argc, argv);
-#else
-    return 0;
+#include <arch/tsb/gpio.h>
+#include <arch/tsb/device_table.h>
+#include <arch/tsb/driver.h>
+
+
+#include <stdio.h>
+#include <errno.h>
+#include <pthread.h>
+
+#include <arch/tsb/unipro.h>
+#include <apps/greybus-utils/utils.h>
+#include <apps/ara/service_mgr.h>
+#include <apps/ara/gb_loopback.h>
+
+static struct srvmgr_service services[] = {
+#if defined(CONFIG_ARA_GB_LOOPBACK)
+    {
+        .name = "gb_loopback",
+        .func = gb_loopback_service,
+    },
 #endif
+    { NULL, NULL }
+};
+
+static pthread_t enable_cports_thread;
+void *enable_cports_fn(void *data)
+{
+    enable_cports();
+    return NULL;
 }
 
+void board_initialize(void)
+{
+    int ret;
+
+    tsb_gpio_register(NULL);
+
+    tsb_device_table_register();
+    tsb_driver_register();
+
+    enable_manifest("IID-1", NULL, 0);
+    gb_unipro_init();
+    srvmgr_start(services);
+
+    ret = pthread_create(&enable_cports_thread, NULL, enable_cports_fn, NULL);
+    if (ret) {
+        printf("Can't create enable_cport thread: error %d. Exiting!\n", ret);
+        return;
+    }
+
+    void module_init(void);
+    module_init();
+}
