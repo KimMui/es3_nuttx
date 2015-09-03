@@ -182,8 +182,10 @@ typedef struct {
         GDMAC_INSTR_DMALPEND(unipro_next_loopback);
         uint8_t pad30[DMA_END_SIZE];
         uint8_t unipro_program_entry_point[DMA_MOV_SIZE];                  // PL330 program starting point
-        uint8_t pad40[DMA_LP_SIZE];
+        GDMAC_INSTR_DMALP(unipro_start_loopcount);
         GDMAC_INSTR_DMALPEND(unipro_start_tx_loopback);
+        uint8_t pad40[DMA_LP_SIZE];
+        GDMAC_INSTR_DMALPEND(unipro_start_eom_loopback);
         uint8_t pad50[DMA_END_SIZE];
     };
 } tsb_dma_gdmac_unipro_tx_channel;
@@ -240,6 +242,8 @@ static const uint8_t tsb_dma_gdma_unipro_tx_prg[] = {
         DMAMOV(ccr, 0x01C04701), // DMA execution starts here. Not the first instruction.
         DMALP(lc0, GDMAC_DO_LOOPBACK),
         DMALPEND(lc0, UNIPRO_LOOPBACK_COUNT(unipro_start_tx_loopback, unipro_starting_tx)),
+        DMALP(lc0, GDMAC_DO_LOOPBACK),
+        DMALPEND(lc0, UNIPRO_LOOPBACK_COUNT(unipro_start_eom_loopback, unipro_eom)),
         DMAEND
 };
 
@@ -507,6 +511,11 @@ static int gdmac_unipro_tx_transfer(struct tsb_dma_channel *dma_channel, void* b
         lldbg("GDMAC is in running state.\n");
     }
 
+    // data len is 0 and EOM register address is not set.
+    if ((len == 0) && (unipro_tx_arg->eom_addr == NULL)) {
+        return -EINVAL;
+    }
+
     lldbg("gmdac_prg at %x(%x)\n", &unipro_tx_channel->gdmac_program[0], unipro_tx_channel);
 
     // Set the source and destination addresses, as well as the data count.
@@ -519,6 +528,13 @@ static int gdmac_unipro_tx_transfer(struct tsb_dma_channel *dma_channel, void* b
         // run the little piece of code at the very top to hit the EOM register.
         *((volatile uint8_t *)&unipro_tx_channel->unpro_eom_loopcount.value) = GDMAC_DO_LOOPBACK;
         *((volatile uint32_t *)&unipro_tx_channel->unipro_eom_reg_addr.value) = (uint32_t) unipro_tx_arg->eom_addr;
+
+        if (len == 0) {
+            *((volatile uint8_t *)&unipro_tx_channel->unipro_start_loopcount.value) = GDMAC_DONOT_LOOPBACK;
+            *((volatile uint32_t *)&unipro_tx_channel->unipro_eom_reg_addr.value) = (uint32_t) unipro_tx_arg->eom_addr;
+        } else {
+            *((volatile uint8_t *)&unipro_tx_channel->unipro_start_loopcount.value) = GDMAC_DO_LOOPBACK;
+        }
     } else {
         // If this is NOT the last fragmented message, set loop count to 1 to cause the GDMAC to
         // raise the AP interrupt event and ends the execution.
