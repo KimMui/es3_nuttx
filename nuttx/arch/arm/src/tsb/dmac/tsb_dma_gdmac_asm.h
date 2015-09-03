@@ -50,7 +50,7 @@
 #define DMAMOV_dar                  0x02
 #define DMAMOV_ccr                  0x01
 #define DMAWFE_                     0x00
-#define DMAWFE_i                    0x02
+#define DMAWFE_invalid              0x02
 #define DMAWFP_S                    0x00
 #define DMAWFP_B                    0x02
 #define DMAWFP_P                    0x01

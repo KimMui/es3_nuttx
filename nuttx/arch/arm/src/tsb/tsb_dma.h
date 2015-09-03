@@ -50,6 +50,10 @@ struct tsb_dma_channel {
     dma_release_channel release_channel;
 
     sem_t lock;
+
+    // For async transfer.
+    sem_t tx_sem;
+    struct device *dev;
     device_dma_callback callback;
 
     struct tsb_dma_channel_info *channel_info;
@@ -67,4 +71,7 @@ extern int tsb_dma_max_number_of_channels(void);
 extern void tsb_dma_init_controller(struct device *);
 extern void tsb_dma_deinit_controller(struct device *);
 extern int tsb_dma_allocal_unipro_tx_channel(struct tsb_dma_channel *channel);
+
+extern enum device_dma_cmd tsb_dma_transfer_done_callback(struct device *dev, unsigned int chan,
+        enum device_dma_event event, device_dma_transfer_arg *arg);
 
