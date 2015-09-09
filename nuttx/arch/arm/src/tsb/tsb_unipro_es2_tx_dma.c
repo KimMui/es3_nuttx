@@ -130,6 +130,9 @@ static void unipro_xfer_dequeue_descriptor(struct unipro_xfer_descriptor *desc)
 
     flags = irqsave();
     list_del(&desc->list);
+    if (!list_is_empty(&desc->cport->tx_fifo)) {
+        sem_post(&worker.tx_fifo_lock);
+    }
     irqrestore(flags);
 
     release_dma_channel(desc->channel);
@@ -302,10 +305,11 @@ int unipro_send_async(unsigned int cportid, const void *buf, size_t len,
     list_init(&desc->list);
 
     flags = irqsave();
+    if (list_is_empty(&cport->tx_fifo)) {
+        sem_post(&worker.tx_fifo_lock);
+    }
     list_add(&cport->tx_fifo, &desc->list);
     irqrestore(flags);
-
-    sem_post(&worker.tx_fifo_lock);
 
     return 0;
 }
