@@ -155,6 +155,7 @@
 #define APBRIDGE_RWREQUEST_LOG          (0x02)
 #define APBRIDGE_RWREQUEST_EP_MAPPING   (0x03)
 #define APBRIDGE_ROREQUEST_CPORT_COUNT  (0x04)
+#define APBRIDGE_WOREQUEST_CPORT_RESET  (0x05)
 
 /* Misc Macros ****************************************************************/
 
@@ -1580,6 +1581,12 @@ static int usbclass_setup(struct usbdevclass_driver_s *driver,
                         *(uint16_t *) req->buf =
                             cpu_to_le16(unipro_cport_count());
                         ret = sizeof(uint16_t);
+                    } else {
+                        ret = -EINVAL;
+                    }
+                } else if (ctrl->req == APBRIDGE_WOREQUEST_CPORT_RESET) {
+                    if (!(ctrl->type & USB_DIR_IN)) {
+                        ret = unipro_reset_cport(index);
                     } else {
                         ret = -EINVAL;
                     }
