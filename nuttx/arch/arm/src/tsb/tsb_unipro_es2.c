@@ -68,12 +68,16 @@
 #define TRANSFER_MODE_2_CTRL_1 (0xAAAAAAA5) // Transfer mode 2 for CPorts 18-31
 #define TRANSFER_MODE_2_CTRL_2 (0x00AAAAAA) // Transfer mode 2 for CPorts 32-43
 
+#define CPORT_SW_RESET_BITS 3
+
 struct cport {
     struct unipro_driver *driver;
     uint8_t *tx_buf;                // TX region for this CPort
     uint8_t *rx_buf;                // RX region for this CPort
     unsigned int cportid;
     int connected;
+
+    volatile bool pending_reset;
 
     struct list_head tx_fifo;
     pthread_mutex_t tx_fifo_lock;
@@ -153,6 +157,7 @@ static inline void unipro_set_eom_flag(struct cport *cport);
 static int unipro_send_sync(unsigned int cportid,
                             const void *buf, size_t len, bool som);
 static void dump_regs(void);
+static int _unipro_reset_cport(unsigned int cportid);
 
 /* irq handlers */
 static int irq_rx_eom(int, void*);
@@ -743,7 +748,6 @@ int unipro_init_cport(unsigned int cportid)
     if (cport->connected)
         return 0;
 
-
     /*
      * FIXME: We presently specify a fixed receive buffer address
      *        for each CPort.  That approach won't work for a
@@ -800,6 +804,10 @@ static int unipro_send_tx_buffer(struct cport *cport)
     flags = irqsave();
 
     if (list_is_empty(&cport->tx_fifo)) {
+        if (cport->pending_reset) {
+            _unipro_reset_cport(cport->cportid);
+            cport->pending_reset = false;
+        }
         irqrestore(flags);
         return 0;
     }
@@ -989,6 +997,10 @@ int unipro_send_async(unsigned int cportid, const void *buf, size_t len,
         return -EINVAL;
     }
 
+    if (cport->pending_reset) {
+        return -EPIPE;
+    }
+
     if (!cport->connected) {
         lldbg("CP%u unconnected\n", cport->cportid);
         return -EPIPE;
@@ -1038,6 +1050,10 @@ int unipro_send(unsigned int cportid, const void *buf, size_t len)
         return -EINVAL;
     }
 
+    if (cport->pending_reset) {
+        return -EPIPE;
+    }
+
     pthread_mutex_lock(&cport->tx_fifo_lock);
 
     for (som = true, sent = 0; sent < len;) {
@@ -1059,6 +1075,10 @@ int unipro_send(unsigned int cportid, const void *buf, size_t len)
 #endif
 
 out:
+    if (cport->pending_reset && list_is_empty(&cport->tx_fifo)) {
+        _unipro_reset_cport(cport->cportid);
+    }
+
     pthread_mutex_unlock(&cport->tx_fifo_lock);
 
     return ret;
@@ -1172,6 +1192,90 @@ int unipro_attr_write(uint16_t attr,
                       uint32_t *result_code)
 {
     return unipro_attr_access(attr, &val, selector, peer, 1, result_code);
+}
+
+static int _unipro_reset_cport(unsigned int cportid)
+{
+    int rc;
+    int retval = 0;
+    uint32_t result;
+    uint32_t tx_reset_offset;
+    uint32_t rx_reset_offset;
+    uint32_t tx_queue_empty_offset;
+    unsigned tx_queue_empty_bit;
+
+    if (cportid >= unipro_cport_count()) {
+        return -EINVAL;
+    }
+
+    tx_queue_empty_offset = CPB_TXQUEUEEMPTY_0 + ((cportid / 32) << 2);
+    tx_queue_empty_bit = (1 << (cportid % 32));
+
+    while (!(getreg32(AIO_UNIPRO_BASE + tx_queue_empty_offset) &
+                tx_queue_empty_bit)) {
+    }
+
+    tx_reset_offset = TX_SW_RESET_00 + (cportid << 2);
+    rx_reset_offset = RX_SW_RESET_00 + (cportid << 2);
+
+    putreg32(CPORT_SW_RESET_BITS, AIO_UNIPRO_BASE + tx_reset_offset);
+
+    rc = unipro_attr_local_write(T_CONNECTIONSTATE, 0, cportid, &result);
+    if (rc || result) {
+        lowsyslog("error resetting T_CONNECTIONSTATE (%d)\n", result);
+        retval = -EIO;
+    }
+
+    rc = unipro_attr_local_write(T_LOCALBUFFERSPACE, 0, cportid, &result);
+    if (rc || result) {
+        lowsyslog("error resetting T_LOCALBUFFERSPACE (%d)\n", result);
+        retval = -EIO;
+    }
+
+    rc = unipro_attr_local_write(T_PEERBUFFERSPACE, 0, cportid, &result);
+    if (rc || result) {
+        lowsyslog("error resetting T_PEERBUFFERSPACE (%d)\n", result);
+        retval = -EIO;
+    }
+
+    rc = unipro_attr_local_write(T_CREDITSTOSEND, 0, cportid, &result);
+    if (rc || result) {
+        lowsyslog("error resetting T_CREDITSTOSEND (%d)\n", result);
+        retval = -EIO;
+    }
+
+    putreg32(CPORT_SW_RESET_BITS, AIO_UNIPRO_BASE + rx_reset_offset);
+    putreg32(0, AIO_UNIPRO_BASE + tx_reset_offset);
+    putreg32(0, AIO_UNIPRO_BASE + rx_reset_offset);
+
+    return retval;
+}
+
+int unipro_reset_cport(unsigned int cportid)
+{
+    struct cport *cport;
+    irqstate_t flags;
+    int retval;
+
+    cport = cport_handle(cportid);
+    if (!cport)
+        return -EINVAL;
+
+    flags = irqsave();
+    if (list_is_empty(&cport->tx_fifo)) {
+        retval = pthread_mutex_trylock(&cport->tx_fifo_lock);
+        if (!retval) {
+            retval = _unipro_reset_cport(cportid);
+            pthread_mutex_unlock(&cport->tx_fifo_lock);
+            irqrestore(flags);
+            return retval;
+        }
+    }
+
+    cport->pending_reset = true;
+    irqrestore(flags);
+
+    return 0;
 }
 
 /**
