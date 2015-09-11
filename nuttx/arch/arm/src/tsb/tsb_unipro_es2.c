@@ -748,6 +748,8 @@ int unipro_init_cport(unsigned int cportid)
     if (cport->connected)
         return 0;
 
+    unipro_reset_cport(cportid);
+
     /*
      * FIXME: We presently specify a fixed receive buffer address
      *        for each CPort.  That approach won't work for a
