@@ -54,6 +54,7 @@ int unipro_send_async(unsigned int cportid, const void *buf, size_t len,
                       unipro_send_completion_t callback, void *priv);
 int unipro_unpause_rx(unsigned int cportid);
 int unipro_reset_cport(unsigned int cportid);
+int unipro_cport_status(unsigned int cportid, uint32_t *status);
 
 /*
  * Lower level attribute read/write.

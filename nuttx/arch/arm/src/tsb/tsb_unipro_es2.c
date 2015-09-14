@@ -70,6 +70,8 @@
 
 #define CPORT_SW_RESET_BITS 3
 
+#define CPORT_STATUS_RESET      BIT(0)
+
 struct cport {
     struct unipro_driver *driver;
     uint8_t *tx_buf;                // TX region for this CPort
@@ -1276,6 +1278,24 @@ int unipro_reset_cport(unsigned int cportid)
 
     cport->pending_reset = true;
     irqrestore(flags);
+
+    return 0;
+}
+
+int unipro_cport_status(unsigned int cportid, uint32_t *status)
+{
+    struct cport *cport;
+
+    cport = cport_handle(cportid);
+    if (!cport) {
+        return -EINVAL;
+    }
+
+    *status = 0;
+
+    if (cport->pending_reset) {
+        *status |= CPORT_STATUS_RESET;
+    }
 
     return 0;
 }
