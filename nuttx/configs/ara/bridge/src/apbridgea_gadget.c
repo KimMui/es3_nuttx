@@ -156,6 +156,7 @@
 #define APBRIDGE_RWREQUEST_EP_MAPPING   (0x03)
 #define APBRIDGE_ROREQUEST_CPORT_COUNT  (0x04)
 #define APBRIDGE_WOREQUEST_CPORT_RESET  (0x05)
+#define APBRIDGE_ROREQUEST_CPORT_STATUS (0x06)
 
 /* Misc Macros ****************************************************************/
 
@@ -1389,6 +1390,7 @@ static int usbclass_setup(struct usbdevclass_driver_s *driver,
     struct apbridge_dev_s *priv;
     struct usbdev_req_s *req;
     struct apbridge_req_s *ctrreq;
+    uint32_t cport_status;
 
     uint16_t value;
     uint16_t index;
@@ -1589,6 +1591,12 @@ static int usbclass_setup(struct usbdevclass_driver_s *driver,
                         ret = unipro_reset_cport(index);
                     } else {
                         ret = -EINVAL;
+                    }
+                } else if (ctrl->req == APBRIDGE_ROREQUEST_CPORT_STATUS) {
+                    ret = unipro_cport_status(index, &cport_status);
+                    if (!ret) {
+                        *(uint32_t*) req->buf = cpu_to_le32(cport_status);
+                        ret = sizeof(uint32_t);
                     }
                 } else {
                     usbtrace(TRACE_CLSERROR
