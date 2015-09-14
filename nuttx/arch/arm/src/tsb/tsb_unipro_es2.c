@@ -76,6 +76,7 @@ struct cport {
     int connected;
 
     struct list_head tx_fifo;
+    pthread_mutex_t tx_fifo_lock;
 };
 
 struct worker {
@@ -758,11 +759,14 @@ int unipro_init_cport(unsigned int cportid)
     return 0;
 }
 
-static void unipro_dequeue_tx_buffer(struct unipro_buffer *buffer, int status)
+static void unipro_dequeue_tx_buffer(struct unipro_buffer *buffer,
+                                     struct cport *cport, int status)
 {
     irqstate_t flags;
 
     DEBUGASSERT(buffer);
+
+    pthread_mutex_unlock(&cport->tx_fifo_lock);
 
     flags = irqsave();
     list_del(&buffer->list);
@@ -804,11 +808,15 @@ static int unipro_send_tx_buffer(struct cport *cport)
 
     irqrestore(flags);
 
+    if (buffer->som) {
+        pthread_mutex_lock(&cport->tx_fifo_lock);
+    }
+
     retval = unipro_send_sync(cport->cportid,
                               buffer->data + buffer->byte_sent,
                               buffer->len - buffer->byte_sent, buffer->som);
     if (retval < 0) {
-        unipro_dequeue_tx_buffer(buffer, retval);
+        unipro_dequeue_tx_buffer(buffer, cport, retval);
         lldbg("unipro_send_sync failed. Dropping message...\n");
         return -EINVAL;
     }
@@ -824,7 +832,7 @@ static int unipro_send_tx_buffer(struct cport *cport)
 #else
         unipro_set_eom_flag(cport);
 #endif
-        unipro_dequeue_tx_buffer(buffer, 0);
+        unipro_dequeue_tx_buffer(buffer, cport, 0);
         return 0;
     }
 
@@ -906,6 +914,7 @@ void unipro_init(void)
         cport->cportid = i;
         cport->connected = 0;
         list_init(&cport->tx_fifo);
+        pthread_mutex_init(&cport->tx_fifo_lock, NULL);
     }
 
     if (es2_fixup_mphy()) {
@@ -1015,7 +1024,8 @@ int unipro_send_async(unsigned int cportid, const void *buf, size_t len,
  */
 int unipro_send(unsigned int cportid, const void *buf, size_t len)
 {
-    int ret, sent;
+    int ret = 0;
+    int sent;
     bool som;
     struct cport *cport;
 
@@ -1028,10 +1038,12 @@ int unipro_send(unsigned int cportid, const void *buf, size_t len)
         return -EINVAL;
     }
 
+    pthread_mutex_lock(&cport->tx_fifo_lock);
+
     for (som = true, sent = 0; sent < len;) {
         ret = unipro_send_sync(cportid, buf + sent, len - sent, som);
         if (ret < 0) {
-            return ret;
+            goto out;
         } else if (ret == 0) {
             continue;
         }
@@ -1046,7 +1058,10 @@ int unipro_send(unsigned int cportid, const void *buf, size_t len)
     unipro_set_eom_flag(cport);
 #endif
 
-    return 0;
+out:
+    pthread_mutex_unlock(&cport->tx_fifo_lock);
+
+    return ret;
 }
 
 /**
