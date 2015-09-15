@@ -100,10 +100,6 @@ int sem_trywait(FAR sem_t *sem)
   irqstate_t saved_state;
   int ret = ERROR;
 
-  /* This API should not be called from interrupt handlers */
-
-  DEBUGASSERT(up_interrupt_context() == false)
-
   /* Assume any errors reported are due to invalid arguments. */
 
   set_errno(EINVAL);
