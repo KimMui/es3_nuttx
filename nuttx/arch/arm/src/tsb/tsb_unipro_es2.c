@@ -739,7 +739,7 @@ void unipro_info(void)
 /**
  * @brief Initialize one UniPro cport
  */
-int unipro_init_cport(unsigned int cportid)
+static int unipro_init_cport(unsigned int cportid)
 {
     struct cport *cport = cport_handle(cportid);
 
