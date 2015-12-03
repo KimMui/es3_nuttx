@@ -75,7 +75,7 @@ config TSB_CHIP_REV
 
 config ARCH_CHIP_DEVICE_GDMAC
 	bool "GDMAC support"
-	depends on TSB_CHIP_REV_ES2
+	depends on TSB_CHIP_REV_ES2 || TSB_CHIP_REV_ES3
 	select DEVICE_CORE
 	---help---
 		TSB GDMAC Driver

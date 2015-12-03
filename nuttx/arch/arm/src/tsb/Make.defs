@@ -86,6 +86,9 @@ endif
 ifeq ($(CONFIG_ARCH_CHIP_DEVICE_GDMAC),y)
 CHIP_CSRCS += tsb_dma.c
 CHIP_CSRCS += $(DMA_DMAC_CSRCS)
+ifeq ($(CONFIG_TSB_CHIP_REV_ES3), y)
+CHIP_CSRCS += tsb_atabl.c
+endif
 endif
 
 ifeq ($(CONFIG_ARCH_CHIP_TSB_PLL),y)
@@ -105,7 +108,11 @@ ifeq ($(CONFIG_TSB_CHIP_REV_ES3), y)
 CMN_CSRCS += tsb_es3_unipro.c
 endif
 ifeq ($(CONFIG_ARCH_UNIPROTX_USE_DMA), y)
+ifeq ($(CONFIG_TSB_CHIP_REV_ES3), y)
+CMN_CSRCS += tsb_unipro_es3_tx_dma.c
+else
 CMN_CSRCS += tsb_unipro_tx_dma.c
+endif
 else
 CMN_CSRCS += tsb_unipro_tx.c
 endif
